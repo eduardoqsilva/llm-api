@@ -260,7 +260,7 @@
       Sem contexto (stateless)
     </label>
 
-    <button id="send">Enviar</button>
+    <button id="send" type="button">Enviar</button>
 
     <button id="errorButton" type="button">
       Histórico de erros
@@ -325,7 +325,7 @@
 
     function recordError({ message, status = null, endpoint = null, requestBody = null, details = null }) {
       const entry = {
-        id: Date.now() + "-" + Math.random().toString(36).slice(2, 7),
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         timestamp: formatTimestamp(new Date()),
         message,
         status,
@@ -364,8 +364,8 @@
         meta.className = "error-meta";
         meta.textContent =
           entry.timestamp +
-          (entry.status ? " · HTTP " + entry.status : "") +
-          (entry.endpoint ? " · " + entry.endpoint : "");
+          (entry.status ? ` · HTTP ${entry.status}` : "") +
+          (entry.endpoint ? ` · ${entry.endpoint}` : "");
 
         const msg = document.createElement("div");
         msg.className = "error-msg";
@@ -377,7 +377,7 @@
         if (entry.requestBody) {
           const body = document.createElement("div");
           body.className = "error-detail";
-          body.textContent = "Body: " + entry.requestBody;
+          body.textContent = `Body: ${entry.requestBody}`;
           li.appendChild(body);
         }
 
@@ -517,7 +517,7 @@
       title.className = "error-title";
       title.textContent =
         "Erro na requisição" +
-        (entry.status ? " (HTTP " + entry.status + ")" : "");
+        (entry.status ? ` (HTTP ${entry.status})` : "");
 
       const msg = document.createElement("div");
       msg.textContent = entry.message;
@@ -528,7 +528,7 @@
       if (entry.requestBody) {
         const detail = document.createElement("div");
         detail.className = "error-detail";
-        detail.textContent = "Body enviado: " + entry.requestBody;
+        detail.textContent = `Body enviado: ${entry.requestBody}`;
         card.appendChild(detail);
       }
 
@@ -567,14 +567,14 @@
 
           return (
             (err.message || "Sem mensagem") +
-            (err.type ? "\nTipo: " + err.type : "")
+            (err.type ? `\nTipo: ${err.type}` : "")
           );
         }
       } catch {
         /* não é JSON — usa o texto bruto */
       }
 
-      return text || ("HTTP " + response.status + " " + response.statusText);
+      return text || (`HTTP ${response.status} ${response.statusText}`);
     }
 
     async function sendMessage() {
@@ -642,12 +642,12 @@
             status: response.status,
             endpoint: API_URL,
             requestBody,
-            details: "HTTP " + response.status + " " + response.statusText
+            details: `HTTP ${response.status} ${response.statusText}`
           });
 
           showErrorInChat(assistant, entry);
           setStatus(
-            "Erro HTTP " + response.status + " — veja o histórico de erros.",
+            `Erro HTTP ${response.status} — veja o histórico de erros.`,
             true
           );
 
@@ -680,7 +680,7 @@
             ({ done, value } = await reader.read());
           } catch (error) {
             const entry = recordError({
-              message: "Stream interrompido: " + (error.message || "erro de leitura"),
+              message: `Stream interrompido: ${error.message || "erro de leitura"}`,
               endpoint: API_URL,
               requestBody,
               details: error.stack || String(error)

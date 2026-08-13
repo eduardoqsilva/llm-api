@@ -22,48 +22,29 @@ const chatRoute: FastifyPluginAsync = async (fastify) => {
       messages?: ChatMessage[]
     }
 
-    const response = await chatCompletion(
-      request.body,
-      body.thinking,
-      body.stateless,
-    )
+    const response = await chatCompletion(body, body.thinking, body.stateless)
 
     if (body.stream) {
       const origin = request.headers.origin
 
       if (origin) {
-        reply.raw.setHeader(
-          'Access-Control-Allow-Origin',
-          origin,
-        )
+        reply.raw.setHeader('Access-Control-Allow-Origin', origin)
       }
 
       reply.raw.setHeader(
         'Access-Control-Allow-Headers',
-        'Authorization, Content-Type',
+        'Authorization, Content-Type'
       )
 
-      reply.raw.setHeader(
-        'Access-Control-Allow-Methods',
-        'GET,HEAD,POST',
-      )
+      reply.raw.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,POST')
 
-      reply.raw.setHeader(
-        'Cache-Control',
-        'no-cache',
-      )
+      reply.raw.setHeader('Cache-Control', 'no-cache')
 
-      reply.raw.setHeader(
-        'Connection',
-        'keep-alive',
-      )
+      reply.raw.setHeader('Connection', 'keep-alive')
 
       const contentType = response.headers.get('content-type')
 
-      reply.raw.setHeader(
-        'Content-Type',
-        contentType ?? 'text/event-stream',
-      )
+      reply.raw.setHeader('Content-Type', contentType ?? 'text/event-stream')
 
       reply.raw.statusCode = response.status
 
@@ -96,9 +77,7 @@ const chatRoute: FastifyPluginAsync = async (fastify) => {
 
     const data = await response.json()
 
-    return reply
-      .code(response.status)
-      .send(data)
+    return reply.code(response.status).send(data)
   })
 }
 

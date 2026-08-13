@@ -1,9 +1,16 @@
 import { env } from '../config/env.js'
 
+type ChatBody = {
+  thinking?: boolean
+  chat_template_kwargs?: Record<string, unknown>
+  reasoning_effort?: string
+  messages?: unknown[]
+}
+
 export async function chatCompletion(
-  body: any,
+  body: ChatBody,
   thinking?: boolean,
-  stateless?: boolean,
+  stateless?: boolean
 ) {
   if (typeof thinking === 'boolean') {
     body.chat_template_kwargs = {
@@ -22,16 +29,13 @@ export async function chatCompletion(
     body.messages = body.messages.slice(-1)
   }
 
-  const response = await fetch(
-    `${env.llamaUrl}/v1/chat/completions`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
+  const response = await fetch(`${env.llamaUrl}/v1/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
     },
-  )
+    body: JSON.stringify(body),
+  })
 
   return response
 }

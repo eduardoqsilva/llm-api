@@ -1,0 +1,16 @@
+pre-commit:
+  parallel: true
+
+  jobs:
+    - name: biome
+      glob: "*.{js,mjs,cjs,ts,tsx,json}"
+      run: npm run check:fix -- {staged_files}
+      stage_fixed: true
+
+    - name: types
+      run: npm run typecheck
+
+pre-push:
+  jobs:
+    - name: build
+      run: npm run build

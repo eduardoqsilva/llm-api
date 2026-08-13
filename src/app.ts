@@ -1,9 +1,8 @@
+import cors from '@fastify/cors'
 import Fastify from 'fastify'
-
+import { env } from './config/env.js'
 import authPlugin from './plugins/auth.js'
 import chatRoute from './routes/chat.js'
-import cors from '@fastify/cors'
-import { env } from './config/env.js'
 
 export function buildApp() {
   const app = Fastify({
@@ -14,7 +13,6 @@ export function buildApp() {
   app.register(cors, {
     origin: true,
   })
-
 
   app.register(authPlugin)
 
