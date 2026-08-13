@@ -35,8 +35,8 @@ Os modelos ficam na pasta `models/` na raiz do projeto. Essa pasta é montada de
 ```
 llm-api/
 └── models/
-    ├── model.gguf                              (obrigatório - modelo de linguagem)
-    └── mmproj-gemma-4-E2B-it-Q8_0.gguf         (necessário para multimodal - se o modelo for de visão)
+    ├── model.gguf         (obrigatório - modelo de linguagem)
+    └── mmproj.gguf        (necessário para multimodal - projector de visão)
 ```
 
 ### 1. Modelo de linguagem (`model.gguf`)
@@ -64,7 +64,7 @@ curl -L -o models/model.gguf \
   "https://huggingface.co/ggml-org/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-Q4_0.gguf"
 ```
 
-### 2. Projector multimodal (`mmproj-*.gguf`) — opcional
+### 2. Projector multimodal (`mmproj.gguf`) — opcional
 
 Para enviar **imagens**, o `llama-server` precisa do projector de visão do modelo. Se você tentar enviar uma imagem sem ele, recebe:
 
@@ -72,21 +72,23 @@ Para enviar **imagens**, o `llama-server` precisa do projector de visão do mode
 {"error":{"code":500,"message":"image input is not supported - hint: if this is unexpected, you may need to provide the mmproj","type":"server_error"}}
 ```
 
+> A API usa apenas um modelo por vez, então o projector segue o padrão simplificado: basta salvá-lo como **`mmproj.gguf`** em `models/`.
+
 O arquivo `mmproj` deve estar em `models/` e ser referenciado no `docker-compose.yml`:
 
 ```yaml
 command:
   [
     "-m", "/models/model.gguf",
-    "--mmproj", "/models/mmproj-gemma-4-E2B-it-Q8_0.gguf",
+    "--mmproj", "/models/mmproj.gguf",
     ...
   ]
 ```
 
-Exemplo de download do projector oficial do Gemma 4 E2B:
+Exemplo de download do projector oficial do Gemma 4 E2B (salve como `mmproj.gguf`):
 
 ```bash
-curl -L -o models/mmproj-gemma-4-E2B-it-Q8_0.gguf \
+curl -L -o models/mmproj.gguf \
   "https://huggingface.co/ggml-org/gemma-4-E2B-it-GGUF/resolve/main/mmproj-gemma-4-E2B-it-Q8_0.gguf"
 ```
 
@@ -97,7 +99,7 @@ Para confirmar que o projector carregou, veja o log do container:
 ```bash
 docker compose logs llama
 # deve aparecer algo como:
-# load_model: loaded multimodal model, '/models/mmproj-gemma-4-E2B-it-Q8_0.gguf'
+# load_model: loaded multimodal model, '/models/mmproj.gguf'
 ```
 
 ## Configuração (.env)

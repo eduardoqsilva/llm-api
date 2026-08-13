@@ -22,7 +22,7 @@ services:
         "-m",
         "/models/model.gguf",
         "--mmproj",
-        "/models/mmproj-gemma-4-E2B-it-Q8_0.gguf",
+        "/models/mmproj.gguf",
         "--host",
         "0.0.0.0",
         "--port",
