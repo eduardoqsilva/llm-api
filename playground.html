@@ -6,67 +6,232 @@
   <title>LLM API Playground</title>
 
   <style>
+    :root {
+      --bg: #f7f7f8;
+      --surface: #ffffff;
+      --border: #e3e3e8;
+      --border-strong: #d1d1d6;
+      --text: #1a1a1d;
+      --text-secondary: #6b6b72;
+      --accent: #10a37f;
+      --accent-soft: #e6f4ef;
+      --danger: #d14343;
+      --user-bubble: #1f2937;
+      --user-bubble-text: #f9fafb;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+      --max-w: 768px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
     body {
-      font-family: Arial, sans-serif;
-      max-width: 900px;
-      margin: 30px auto;
-      padding: 0 20px;
+      height: 100%;
     }
 
-    h1 {
-      margin-bottom: 4px;
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 15px;
+      line-height: 1.5;
     }
 
-    .subtitle {
-      color: #666;
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+    }
+
+    /* ---------- Header ---------- */
+
+    .app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), #0d8a6b);
+      color: #fff;
+      font-weight: 700;
       font-size: 13px;
-      margin: 0 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
     }
 
-    #chat {
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      padding: 15px;
-      min-height: 400px;
-      margin-bottom: 15px;
+    .brand h1 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .brand .subtitle {
+      margin: 0;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      position: relative;
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: 10px;
+      cursor: pointer;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+    .icon-btn:hover {
+      background: var(--bg);
+      color: var(--text);
+      border-color: var(--border-strong);
+    }
+
+    .icon-btn svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    #errorBadge {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      background: var(--danger);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      border-radius: 10px;
+      padding: 1px 6px;
+      display: none;
+    }
+
+    /* ---------- Chat ---------- */
+
+    .chat {
+      flex: 1;
       overflow-y: auto;
+      padding: 20px 0;
     }
 
-    .message {
-      margin-bottom: 20px;
+    .chat-inner {
+      max-width: var(--max-w);
+      margin: 0 auto;
+      padding: 0 16px;
+    }
+
+    .message-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+
+    .message-row.user {
+      flex-direction: row-reverse;
+    }
+
+    .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), #0d8a6b);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .avatar svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .bubble {
+      padding: 10px 14px;
       white-space: pre-wrap;
+      word-break: break-word;
+      max-width: 85%;
     }
 
-    .user {
-      font-weight: bold;
+    .bubble.user {
+      background: var(--user-bubble);
+      color: var(--user-bubble-text);
+      border-radius: 18px 18px 4px 18px;
     }
 
-    .assistant {
-      margin-top: 5px;
+    .bubble.assistant {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px 18px 18px 4px;
     }
 
     .reasoning {
-      color: #777;
-      font-size: 14px;
-      border-left: 3px solid #ccc;
+      margin: 0 0 10px;
+      font-size: 13.5px;
+    }
+
+    .reasoning summary {
+      color: var(--text-secondary);
+      cursor: pointer;
+      user-select: none;
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+
+    .reasoning .reasoning-body {
+      color: #4b4b53;
+      border-left: 3px solid var(--border-strong);
       padding-left: 10px;
-      margin: 8px 0;
       white-space: pre-wrap;
     }
 
     .error-card {
-      margin-top: 5px;
+      margin-top: 8px;
       padding: 10px;
-      border: 1px solid #e0a0a0;
-      border-radius: 6px;
+      border: 1px solid #f0c4c4;
+      border-radius: 10px;
       background: #fdf0f0;
-      color: #a33;
+      color: var(--danger);
       white-space: pre-wrap;
       word-break: break-word;
     }
 
     .error-card .error-title {
-      font-weight: bold;
+      font-weight: 700;
       margin-bottom: 4px;
     }
 
@@ -76,84 +241,254 @@
       margin-top: 6px;
     }
 
-    textarea {
+    /* ---------- Status ---------- */
+
+    .status {
+      max-width: var(--max-w);
       width: 100%;
-      min-height: 80px;
-      resize: vertical;
-      box-sizing: border-box;
-      padding: 10px;
+      margin: 0 auto;
+      padding: 0 16px 8px;
+      color: var(--text-secondary);
+      font-size: 12.5px;
+      text-align: center;
+      flex-shrink: 0;
     }
 
-    button {
-      padding: 8px 15px;
-      cursor: pointer;
-      margin-top: 8px;
+    .status.error {
+      color: var(--danger);
+      font-weight: 600;
     }
 
-    .controls {
+    /* ---------- Composer ---------- */
+
+    .composer {
+      padding: 8px 16px 16px;
+      flex-shrink: 0;
+    }
+
+    .composer-box {
+      max-width: var(--max-w);
+      margin: 0 auto;
+      background: var(--surface);
+      border: 1px solid var(--border-strong);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 10px 12px 8px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .composer-box:focus-within {
+      border-color: var(--accent);
+    }
+
+    .attachment-chips {
       display: flex;
       flex-wrap: wrap;
-      gap: 16px;
-      align-items: center;
-      margin-top: 8px;
+      gap: 8px;
+      margin-bottom: 8px;
     }
 
-    label {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-    }
-
-    #status {
-      color: #666;
-      font-size: 13px;
-      margin: 8px 0;
-    }
-
-    #status.error {
-      color: #a33;
-      font-weight: bold;
-    }
-
-    #imageRow {
-      margin-top: 8px;
-    }
-
-    #imagePreview {
-      max-width: 200px;
-      max-height: 200px;
-      margin-top: 8px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-    }
-
-    #errorButton {
-      position: relative;
-    }
-
-    #settingsButton {
-      margin-left: auto;
-    }
-
-    #errorBadge {
-      position: absolute;
-      top: -6px;
-      right: -6px;
-      background: #c33;
-      color: #fff;
-      font-size: 11px;
-      font-weight: bold;
-      border-radius: 10px;
-      padding: 1px 6px;
+    .attachment-chips[hidden] {
       display: none;
     }
 
-    /* Modal de histórico de erros */
+    .chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 4px 4px 4px 6px;
+      max-width: 280px;
+    }
+
+    .chip .chip-media {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .chip img {
+      width: 44px;
+      height: 44px;
+      object-fit: cover;
+      border-radius: 8px;
+    }
+
+    .chip audio,
+    .chip video {
+      height: 40px;
+      width: 170px;
+      border-radius: 8px;
+    }
+
+    .chip .chip-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      padding: 0 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .chip .chip-remove {
+      width: 24px;
+      height: 24px;
+      border: none;
+      background: transparent;
+      border-radius: 6px;
+      cursor: pointer;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .chip .chip-remove:hover {
+      background: #e8e8ec;
+      color: var(--danger);
+    }
+
+    .chip .chip-remove svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    textarea {
+      width: 100%;
+      border: none;
+      outline: none;
+      resize: none;
+      font: inherit;
+      line-height: 1.5;
+      background: transparent;
+      color: var(--text);
+      padding: 4px 6px;
+      max-height: 200px;
+    }
+
+    .composer-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .toolbar-left,
+    .toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .attach-btn {
+      width: 34px;
+      height: 34px;
+      border: none;
+      background: transparent;
+      border-radius: 10px;
+      cursor: pointer;
+      color: var(--text-secondary);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .attach-btn:hover {
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .attach-btn svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .attach-btn.recording {
+      color: #fff;
+      background: var(--danger);
+      animation: pulse 1.2s infinite;
+    }
+
+    @keyframes pulse {
+      0%,
+      100% {
+        box-shadow: 0 0 0 0 rgba(209, 67, 67, 0.5);
+      }
+      50% {
+        box-shadow: 0 0 0 8px rgba(209, 67, 67, 0);
+      }
+    }
+
+    .record-timer {
+      font-size: 13px;
+      color: var(--danger);
+      font-variant-numeric: tabular-nums;
+      min-width: 34px;
+      text-align: center;
+    }
+
+    .toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12.5px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      user-select: none;
+      padding: 0 4px;
+    }
+
+    .toggle input {
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .send-btn {
+      width: 34px;
+      height: 34px;
+      border: none;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    .send-btn:hover {
+      background: #0d8a6b;
+    }
+
+    .send-btn:active {
+      transform: scale(0.94);
+    }
+
+    .send-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .send-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* ---------- Modais ---------- */
+
     .modal-overlay {
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.5);
+      background: rgba(0, 0, 0, 0.45);
       z-index: 100;
       justify-content: center;
       align-items: flex-start;
@@ -166,28 +501,71 @@
     }
 
     .modal {
-      background: #fff;
-      border-radius: 8px;
+      background: var(--surface);
+      border-radius: 16px;
       width: 100%;
-      max-width: 700px;
-      padding: 16px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      max-width: 640px;
+      padding: 20px;
+      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.25);
     }
 
     .modal header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 12px;
+      margin-bottom: 14px;
     }
 
     .modal header h2 {
       margin: 0;
-      font-size: 18px;
+      font-size: 17px;
+      font-weight: 600;
     }
 
-    .modal header button {
-      margin-top: 0;
+    .modal header button,
+    .settings-form button {
+      padding: 8px 14px;
+      border: 1px solid var(--border-strong);
+      background: var(--surface);
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 13.5px;
+      color: var(--text);
+    }
+
+    .modal header button:hover,
+    .settings-form button:hover {
+      background: var(--bg);
+    }
+
+    .settings-form label {
+      display: block;
+      margin-bottom: 4px;
+      font-weight: 600;
+      font-size: 13.5px;
+    }
+
+    .settings-form input[type="text"],
+    .settings-form input[type="password"] {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 9px 10px;
+      margin-bottom: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+      border: 1px solid var(--border-strong);
+      border-radius: 10px;
+      outline: none;
+    }
+
+    .settings-form input:focus {
+      border-color: var(--accent);
+    }
+
+    .settings-form .settings-hint {
+      color: var(--text-secondary);
+      font-size: 12px;
+      margin: -4px 0 12px;
     }
 
     #errorList {
@@ -199,8 +577,8 @@
     }
 
     #errorList li {
-      border: 1px solid #e0e0e0;
-      border-radius: 6px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
       padding: 10px;
       margin-bottom: 8px;
       white-space: pre-wrap;
@@ -208,14 +586,14 @@
     }
 
     #errorList li .error-meta {
-      color: #888;
+      color: var(--text-secondary);
       font-size: 12px;
       margin-bottom: 4px;
     }
 
     #errorList li .error-msg {
-      font-weight: bold;
-      color: #a33;
+      font-weight: 600;
+      color: var(--danger);
     }
 
     #errorList li .error-detail {
@@ -225,81 +603,145 @@
     }
 
     #errorEmpty {
-      color: #888;
+      color: var(--text-secondary);
       font-style: italic;
     }
 
     #clearErrors {
       margin-left: 8px;
     }
-
-    .settings-form label {
-      display: block;
-      margin-bottom: 4px;
-      font-weight: bold;
-    }
-
-    .settings-form input[type="text"],
-    .settings-form input[type="password"] {
-      width: 100%;
-      box-sizing: border-box;
-      padding: 8px;
-      margin-bottom: 12px;
-      font-family: monospace;
-    }
-
-    .settings-form .settings-hint {
-      color: #888;
-      font-size: 12px;
-      margin-bottom: 12px;
-    }
   </style>
 </head>
 
 <body>
 
-  <h1>LLM API Playground</h1>
-  <p class="subtitle">
-    Página de teste visual do proxy <code>/v1/chat/completions</code>.
-    Use o botão <strong>Settings</strong> para alterar a URL e o token.
-  </p>
+  <div class="app">
 
-  <div id="chat"></div>
+    <header class="app-header">
+      <div class="brand">
+        <div class="logo">LLM</div>
+        <div>
+          <h1>LLM API Playground</h1>
+          <p class="subtitle">Teste visual do proxy <code>/v1/chat/completions</code></p>
+        </div>
+      </div>
 
-  <div id="status"></div>
+      <div class="header-actions">
+        <button id="clearChatButton" class="icon-btn" type="button" title="Limpar conversa">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+        </button>
+        <button id="settingsButton" class="icon-btn" type="button" title="Settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="4" y1="21" x2="4" y2="14"></line>
+            <line x1="4" y1="10" x2="4" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12" y2="3"></line>
+            <line x1="20" y1="21" x2="20" y2="16"></line>
+            <line x1="20" y1="12" x2="20" y2="3"></line>
+            <line x1="1" y1="14" x2="7" y2="14"></line>
+            <line x1="9" y1="8" x2="15" y2="8"></line>
+            <line x1="17" y1="16" x2="23" y2="16"></line>
+          </svg>
+        </button>
+        <button id="errorButton" class="icon-btn" type="button" title="Histórico de erros">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          <span id="errorBadge">0</span>
+        </button>
+      </div>
+    </header>
 
-  <textarea
-    id="input"
-    placeholder="Digite sua mensagem..."
-  ></textarea>
+    <main id="chat" class="chat" aria-live="polite">
+      <div class="chat-inner" id="chatInner"></div>
+    </main>
 
-  <div class="controls">
-    <label>
-      <input type="checkbox" id="thinking" checked>
-      Mostrar pensamento
-    </label>
+    <div id="status" class="status"></div>
 
-    <label>
-      <input type="checkbox" id="stateless">
-      Sem contexto (stateless)
-    </label>
+    <footer class="composer">
+      <div class="composer-box">
+        <div class="attachment-chips" id="attachmentChips" hidden></div>
 
-    <button id="send" type="button">Enviar</button>
+        <textarea
+          id="input"
+          placeholder="Digite sua mensagem..."
+          rows="1"
+        ></textarea>
 
-    <button id="settingsButton" type="button">Settings</button>
+        <div class="composer-toolbar">
+          <div class="toolbar-left">
+            <label class="attach-btn" title="Imagem">
+              <input type="file" id="image" accept="image/*" hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                <polyline points="21 15 16 10 5 21"></polyline>
+              </svg>
+            </label>
 
-    <button id="errorButton" type="button">
-      Histórico de erros
-      <span id="errorBadge">0</span>
-    </button>
+            <label class="attach-btn" title="Áudio">
+              <input type="file" id="audio" accept="audio/*" hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 18V5l12-2v13"></path>
+                <circle cx="6" cy="18" r="3"></circle>
+                <circle cx="18" cy="16" r="3"></circle>
+              </svg>
+            </label>
+
+            <label class="attach-btn" title="Vídeo">
+              <input type="file" id="video" accept="video/*" hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+                <polyline points="7 2 17 2 17 22 7 22"></polyline>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="10" y1="10" x2="14" y2="10"></line>
+              </svg>
+            </label>
+
+            <button id="recordButton" class="attach-btn" type="button" title="Gravar áudio">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <line x1="12" y1="19" x2="12" y2="22"></line>
+              </svg>
+            </button>
+
+            <span id="recordTimer" class="record-timer" hidden>0:00</span>
+          </div>
+
+          <div class="toolbar-right">
+            <label class="toggle">
+              <input type="checkbox" id="thinking" checked>
+              Pensamento
+            </label>
+            <label class="toggle">
+              <input type="checkbox" id="stateless">
+              Stateless
+            </label>
+            <button id="send" class="send-btn" type="button" title="Enviar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="19" x2="12" y2="5"></line>
+                <polyline points="5 12 12 5 19 12"></polyline>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </footer>
   </div>
-
-  <div id="imageRow">
-    <input type="file" id="image" accept="image/*">
-    <button id="clearImage" type="button" hidden>Remover imagem</button>
-  </div>
-
-  <img id="imagePreview" hidden alt="Preview">
 
   <!-- Modal de settings -->
   <div class="modal-overlay" id="settingsModal">
@@ -410,14 +852,20 @@
     let { url: API_URL, token: API_TOKEN } = loadSettings();
 
     const chat = document.getElementById("chat");
+    const chatInner = document.getElementById("chatInner");
     const input = document.getElementById("input");
     const sendButton = document.getElementById("send");
     const thinkingCheckbox = document.getElementById("thinking");
     const statelessCheckbox = document.getElementById("stateless");
     const status = document.getElementById("status");
+    const clearChatButton = document.getElementById("clearChatButton");
+
     const imageInput = document.getElementById("image");
-    const imagePreview = document.getElementById("imagePreview");
-    const clearImageButton = document.getElementById("clearImage");
+    const audioInput = document.getElementById("audio");
+    const videoInput = document.getElementById("video");
+    const recordButton = document.getElementById("recordButton");
+    const recordTimer = document.getElementById("recordTimer");
+    const attachmentChips = document.getElementById("attachmentChips");
 
     const errorButton = document.getElementById("errorButton");
     const errorBadge = document.getElementById("errorBadge");
@@ -437,6 +885,12 @@
 
     const messages = [];
     const errorHistory = [];
+
+    const attachments = {
+      image: null, // { dataUrl }
+      audio: null, // { dataUrl, format }
+      video: null  // { dataUrl }
+    };
 
     /* ---------- Histórico de erros ---------- */
 
@@ -608,9 +1062,9 @@
       }
     });
 
-    /* ---------- Imagem ---------- */
+    /* ---------- Mídia ---------- */
 
-    function readImageAsDataUrl(file) {
+    function readFileAsDataUrl(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
 
@@ -620,19 +1074,241 @@
       });
     }
 
+    function fileFormat(file) {
+      const ext = (file.name.split(".").pop() || "").toLowerCase();
+      const fromMime = file.type.split("/").pop();
+
+      return ext || fromMime || "";
+    }
+
+    function base64DataFromDataUrl(dataUrl) {
+      const comma = dataUrl.indexOf(",");
+      return comma === -1 ? dataUrl : dataUrl.slice(comma + 1);
+    }
+
+    function arrayBufferToDataUrl(buffer, mime) {
+      return new Promise((resolve, reject) => {
+        const blob = new Blob([buffer], { type: mime });
+        const reader = new FileReader();
+
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    function encodeWav16kMono(audioBuffer) {
+      const targetRate = 16000;
+      const sourceRate = audioBuffer.sampleRate;
+      const input = audioBuffer.getChannelData(0);
+      const ratio = sourceRate / targetRate;
+      const length = Math.max(1, Math.round(input.length / ratio));
+      const samples = new Float32Array(length);
+
+      for (let i = 0; i < length; i++) {
+        const index = Math.min(input.length - 1, Math.floor(i * ratio));
+        samples[i] = input[index];
+      }
+
+      const dataSize = length * 2;
+      const buffer = new ArrayBuffer(44 + dataSize);
+      const view = new DataView(buffer);
+
+      function writeString(offset, str) {
+        for (let i = 0; i < str.length; i++) {
+          view.setUint8(offset + i, str.charCodeAt(i));
+        }
+      }
+
+      writeString(0, "RIFF");
+      view.setUint32(4, 36 + dataSize, true);
+      writeString(8, "WAVE");
+      writeString(12, "fmt ");
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, 1, true);
+      view.setUint32(24, targetRate, true);
+      view.setUint32(28, targetRate * 2, true);
+      view.setUint16(32, 2, true);
+      view.setUint16(34, 16, true);
+      writeString(36, "data");
+      view.setUint32(40, dataSize, true);
+
+      let offset = 44;
+      for (let i = 0; i < length; i++) {
+        const sample = Math.max(-1, Math.min(1, samples[i]));
+        view.setInt16(
+          offset,
+          sample < 0 ? sample * 0x8000 : sample * 0x7fff,
+          true
+        );
+        offset += 2;
+      }
+
+      return buffer;
+    }
+
+    function decodeAudioToBuffer(file, context) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+
+        reader.onload = () => {
+          context.decodeAudioData(reader.result).then(resolve).catch(reject);
+        };
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+      });
+    }
+
+    async function prepareAudioFile(file) {
+      const fallback = {
+        dataUrl: await readFileAsDataUrl(file),
+        format: fileFormat(file)
+      };
+
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+
+      if (!AudioCtx) {
+        return fallback;
+      }
+
+      const context = new AudioCtx();
+
+      try {
+        const audioBuffer = await decodeAudioToBuffer(file, context);
+        const wavBuffer = encodeWav16kMono(audioBuffer);
+        const dataUrl = await arrayBufferToDataUrl(wavBuffer, "audio/wav");
+
+        return {
+          dataUrl,
+          format: "wav"
+        };
+      } catch (error) {
+        recordError({
+          message:
+            "Falha ao converter áudio para WAV: " +
+            (error.message || "sem detalhes"),
+          details: "Enviando o arquivo original sem conversão."
+        });
+
+        return fallback;
+      } finally {
+        try {
+          context.close();
+        } catch {
+          /* ignora */
+        }
+      }
+    }
+
     function getImageDataUrl() {
-      if (!imageInput.files || imageInput.files.length === 0) {
+      return attachments.image?.dataUrl ?? null;
+    }
+
+    function getAudioPart() {
+      if (!attachments.audio) {
         return null;
       }
 
-      return imagePreview.src || null;
+      return {
+        data: base64DataFromDataUrl(attachments.audio.dataUrl),
+        format: attachments.audio.format
+      };
+    }
+
+    function getVideoPart() {
+      if (!attachments.video) {
+        return null;
+      }
+
+      return {
+        data: base64DataFromDataUrl(attachments.video.dataUrl)
+      };
+    }
+
+    function makeChip(media, label, onRemove) {
+      const chip = document.createElement("div");
+      chip.className = "chip";
+
+      const mediaWrap = document.createElement("div");
+      mediaWrap.className = "chip-media";
+      mediaWrap.appendChild(media);
+      chip.appendChild(mediaWrap);
+
+      if (label) {
+        const chipLabel = document.createElement("span");
+        chipLabel.className = "chip-label";
+        chipLabel.textContent = label;
+        mediaWrap.appendChild(chipLabel);
+      }
+
+      const remove = document.createElement("button");
+      remove.className = "chip-remove";
+      remove.type = "button";
+      remove.title = "Remover";
+      remove.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      `;
+      remove.addEventListener("click", onRemove);
+      chip.appendChild(remove);
+
+      return chip;
+    }
+
+    function renderAttachmentChips() {
+      attachmentChips.innerHTML = "";
+
+      if (attachments.image) {
+        const img = document.createElement("img");
+        img.src = attachments.image.dataUrl;
+        img.alt = "Imagem";
+        attachmentChips.appendChild(makeChip(img, null, clearImage));
+      }
+
+      if (attachments.audio) {
+        const audio = document.createElement("audio");
+        audio.src = attachments.audio.dataUrl;
+        audio.controls = true;
+        attachmentChips.appendChild(
+          makeChip(audio, `.${attachments.audio.format}`, clearAudio)
+        );
+      }
+
+      if (attachments.video) {
+        const video = document.createElement("video");
+        video.src = attachments.video.dataUrl;
+        video.controls = true;
+        attachmentChips.appendChild(makeChip(video, null, clearVideo));
+      }
+
+      attachmentChips.hidden =
+        !attachments.image && !attachments.audio && !attachments.video;
     }
 
     function clearImage() {
-      imageInput.value = "";
-      imagePreview.src = "";
-      imagePreview.hidden = true;
-      clearImageButton.hidden = true;
+      attachments.image = null;
+      renderAttachmentChips();
+    }
+
+    function clearAudio() {
+      attachments.audio = null;
+      renderAttachmentChips();
+    }
+
+    function clearVideo() {
+      attachments.video = null;
+      renderAttachmentChips();
+    }
+
+    function clearAllMedia() {
+      attachments.image = null;
+      attachments.audio = null;
+      attachments.video = null;
+      renderAttachmentChips();
     }
 
     imageInput.addEventListener("change", async () => {
@@ -642,50 +1318,191 @@
         return;
       }
 
-      const dataUrl = await readImageAsDataUrl(file);
-
-      imagePreview.src = dataUrl;
-      imagePreview.hidden = false;
-      clearImageButton.hidden = false;
+      attachments.image = { dataUrl: await readFileAsDataUrl(file) };
+      renderAttachmentChips();
     });
 
-    clearImageButton.addEventListener("click", clearImage);
+    audioInput.addEventListener("change", async () => {
+      const file = audioInput.files?.[0];
+
+      if (!file) {
+        return;
+      }
+
+      attachments.audio = await prepareAudioFile(file);
+      renderAttachmentChips();
+    });
+
+    videoInput.addEventListener("change", async () => {
+      const file = videoInput.files?.[0];
+
+      if (!file) {
+        return;
+      }
+
+      attachments.video = { dataUrl: await readFileAsDataUrl(file) };
+      renderAttachmentChips();
+    });
+
+    /* ---------- Gravação de áudio ---------- */
+
+    let mediaRecorder = null;
+    let mediaStream = null;
+    let recordChunks = [];
+    let recordTimerId = null;
+    let recordStartTime = 0;
+    const MAX_RECORD_SECONDS = 30;
+
+    function startRecordingUI() {
+      recordButton.classList.add("recording");
+      recordTimer.hidden = false;
+      recordStartTime = Date.now();
+      updateRecordTimer();
+      recordTimerId = setInterval(updateRecordTimer, 250);
+    }
+
+    function updateRecordTimer() {
+      const seconds = Math.floor((Date.now() - recordStartTime) / 1000);
+      const minutes = Math.floor(seconds / 60);
+
+      recordTimer.textContent = `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
+
+      if (seconds >= MAX_RECORD_SECONDS) {
+        stopRecording();
+      }
+    }
+
+    function stopRecordingUI() {
+      clearInterval(recordTimerId);
+      recordTimerId = null;
+      recordButton.classList.remove("recording");
+      recordTimer.hidden = true;
+    }
+
+    function stopRecording() {
+      if (mediaRecorder && mediaRecorder.state !== "inactive") {
+        mediaRecorder.stop();
+      }
+    }
+
+    async function toggleRecording() {
+      if (mediaRecorder) {
+        stopRecording();
+        return;
+      }
+
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(mediaStream);
+        recordChunks = [];
+
+        mediaRecorder.addEventListener("dataavailable", (event) => {
+          if (event.data && event.data.size > 0) {
+            recordChunks.push(event.data);
+          }
+        });
+
+        mediaRecorder.addEventListener("stop", async () => {
+          const mime = (mediaRecorder?.mimeType || "audio/webm").split(";")[0];
+          const ext = (mime.split("/")[1] || "webm").replace("x-", "");
+          const blob = new Blob(recordChunks, { type: mime });
+          const file = new File(
+            [blob],
+            `gravacao-${Date.now()}.${ext}`,
+            { type: mime }
+          );
+
+          stopRecordingUI();
+
+          if (mediaStream) {
+            mediaStream.getTracks().forEach((track) => track.stop());
+            mediaStream = null;
+          }
+
+          mediaRecorder = null;
+
+          try {
+            attachments.audio = await prepareAudioFile(file);
+            renderAttachmentChips();
+            setStatus("Áudio gravado. Envie para transcrever.");
+          } catch (error) {
+            setStatus("Falha ao processar o áudio gravado.", true);
+          }
+        });
+
+        mediaRecorder.start();
+        startRecordingUI();
+        setStatus("Gravando...");
+      } catch (error) {
+        setStatus(
+          "Sem acesso ao microfone: " + (error.message || error),
+          true
+        );
+      }
+    }
+
+    recordButton.addEventListener("click", toggleRecording);
 
     /* ---------- Chat ---------- */
 
     function addUserMessage(content) {
-      const container = document.createElement("div");
-      container.className = "message";
+      const row = document.createElement("div");
+      row.className = "message-row user";
 
-      container.innerHTML = `
-        <div class="user">Você:</div>
-        <div>${escapeHtml(content)}</div>
-      `;
+      const bubble = document.createElement("div");
+      bubble.className = "bubble user";
+      bubble.textContent = content;
 
-      chat.appendChild(container);
+      row.appendChild(bubble);
+      chatInner.appendChild(row);
       chat.scrollTop = chat.scrollHeight;
     }
 
     function createAssistantMessage() {
-      const container = document.createElement("div");
-      container.className = "message";
+      const row = document.createElement("div");
+      row.className = "message-row assistant";
 
-      const reasoning = document.createElement("div");
+      const avatar = document.createElement("div");
+      avatar.className = "avatar";
+      avatar.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3l1.9 5.7a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3L12 3Z"></path>
+        </svg>
+      `;
+
+      const bubble = document.createElement("div");
+      bubble.className = "bubble assistant";
+
+      const reasoning = document.createElement("details");
       reasoning.className = "reasoning";
+      reasoning.open = true;
+
+      const summary = document.createElement("summary");
+      summary.textContent = "Pensamento";
+
+      const reasoningBody = document.createElement("div");
+      reasoningBody.className = "reasoning-body";
+
+      reasoning.appendChild(summary);
+      reasoning.appendChild(reasoningBody);
 
       const content = document.createElement("div");
-      content.className = "assistant";
+      content.className = "assistant-content";
 
-      container.innerHTML = `<div class="user">Modelo:</div>`;
+      bubble.appendChild(reasoning);
+      bubble.appendChild(content);
 
-      container.appendChild(reasoning);
-      container.appendChild(content);
+      row.appendChild(avatar);
+      row.appendChild(bubble);
 
-      chat.appendChild(container);
+      chatInner.appendChild(row);
 
       return {
-        container,
+        row,
+        bubble,
         reasoning,
+        reasoningBody,
         content
       };
     }
@@ -723,19 +1540,23 @@
       assistant.content.appendChild(card);
     }
 
-    function escapeHtml(text) {
-      return text
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-    }
-
     function setStatus(text, isError = false) {
       status.textContent = text;
-      status.className = isError ? "error" : "";
+      status.className = isError ? "status error" : "status";
     }
+
+    function clearChat() {
+      if (mediaRecorder) {
+        stopRecording();
+      }
+
+      messages.length = 0;
+      chatInner.innerHTML = "";
+      clearAllMedia();
+      setStatus("Conversa limpa.");
+    }
+
+    clearChatButton.addEventListener("click", clearChat);
 
     async function parseErrorResponse(response) {
       const text = await response.text();
@@ -761,35 +1582,79 @@
     async function sendMessage() {
       const text = input.value.trim();
       const imageDataUrl = getImageDataUrl();
+      const audioPart = getAudioPart();
+      const videoPart = getVideoPart();
 
-      if (!text && !imageDataUrl) {
-        setStatus("Digite uma mensagem ou anexe uma imagem.", true);
+      const mediaLabels = [];
+
+      if (imageDataUrl) {
+        mediaLabels.push("imagem");
+      }
+
+      if (audioPart) {
+        mediaLabels.push("áudio");
+      }
+
+      if (videoPart) {
+        mediaLabels.push("vídeo");
+      }
+
+      const hasMedia = mediaLabels.length > 0;
+
+      if (!text && !hasMedia) {
+        setStatus(
+          "Digite uma mensagem ou anexe uma imagem, áudio ou vídeo.",
+          true
+        );
         return;
+      }
+
+      if (mediaRecorder) {
+        stopRecording();
       }
 
       input.value = "";
       sendButton.disabled = true;
 
-      const content = imageDataUrl
-        ? [
-            {
-              type: "image_url",
-              image_url: { url: imageDataUrl }
-            },
-            ...(text
-              ? [{ type: "text", text }]
-              : [])
-          ]
-        : text;
+      const parts = [];
 
-      addUserMessage(text || "[imagem enviada]");
+      if (imageDataUrl) {
+        parts.push({
+          type: "image_url",
+          image_url: { url: imageDataUrl }
+        });
+      }
+
+      if (audioPart) {
+        parts.push({
+          type: "input_audio",
+          input_audio: audioPart
+        });
+      }
+
+      if (videoPart) {
+        parts.push({
+          type: "input_video",
+          input_video: videoPart
+        });
+      }
+
+      if (text) {
+        parts.push({ type: "text", text });
+      }
+
+      const content = hasMedia ? parts : text;
+
+      addUserMessage(
+        text || `[${mediaLabels.join(" + ")} enviado]`
+      );
 
       messages.push({
         role: "user",
         content
       });
 
-      clearImage();
+      clearAllMedia();
 
       const assistant = createAssistantMessage();
 
@@ -914,7 +1779,7 @@
               }
 
               if (delta.reasoning_content) {
-                assistant.reasoning.textContent +=
+                assistant.reasoningBody.textContent +=
                   delta.reasoning_content;
               }
 
@@ -936,6 +1801,10 @@
               showErrorInChat(assistant, entry);
             }
           }
+        }
+
+        if (!assistant.reasoningBody.textContent.trim()) {
+          assistant.reasoning.hidden = true;
         }
 
         messages.push({
@@ -984,6 +1853,18 @@
         }
       }
     );
+
+    input.addEventListener("input", () => {
+      input.style.height = "auto";
+      input.style.height = Math.min(input.scrollHeight, 200) + "px";
+    });
+
+    input.addEventListener("keydown", () => {
+      setTimeout(() => {
+        input.style.height = "auto";
+        input.style.height = Math.min(input.scrollHeight, 200) + "px";
+      }, 0);
+    });
   </script>
 
 </body>

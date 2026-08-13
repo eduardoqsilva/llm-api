@@ -7,6 +7,14 @@ type ContentPart =
       type: 'image_url'
       image_url: { url: string }
     }
+  | {
+      type: 'input_audio'
+      input_audio: { data: string; format: string }
+    }
+  | {
+      type: 'input_video'
+      input_video: { data: string }
+    }
 
 type ChatMessage = {
   role: string

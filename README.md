@@ -254,13 +254,13 @@ curl http://localhost:3000/v1/chat/completions \
 
 > Apesar de `stateless: true` ignorar o histórico, você ainda envia `messages` normalmente (a API usa o último item). Por padrão (`stateless` omitido ou `false`), o histórico completo é mantido.
 
-**5. Multimodal (imagem)**
+**5. Multimodal (imagem, áudio e vídeo)**
 
-Imagens são enviadas como `image_url` dentro de `messages[].content` (formato OpenAI). A URL aceita:
+Imagens, áudios e vídeos são enviados dentro de `messages[].content` (formato OpenAI). O Gemma 4 aceita:
 
-- URL remota (`https://...`) — requer internet no container do llama-server;
-- base64 puro;
-- data URI (`data:image/png;base64,...`) — recomendado, funciona sem rede.
+- **Imagem** (`image_url`) — todos os tamanhos. Aceita URL remota, base64 puro ou data URI (`data:image/png;base64,...`);
+- **Áudio** (`input_audio`) — modelos E2B/E4B/12B. `data` em base64 (sem prefixo `data:`) e `format` com a extensão (`wav`, `mp3`, ...), máx. ~30s;
+- **Vídeo** (`input_video`) — extensão do llama.cpp. `data` em base64 (sem prefixo `data:`). O `llama-server` decodifica com `ffmpeg` (precisa estar instalado no container) e envia os frames ao modelo, máx. ~60s a 1 fps.
 
 ```bash
 # imagem em base64 (data URI)
@@ -285,6 +285,61 @@ curl http://localhost:3000/v1/chat/completions \
     "stream": false
   }'
 ```
+
+Exemplo com áudio (transcrição):
+
+```bash
+curl http://localhost:3000/v1/chat/completions \
+  -H "Authorization: Bearer abc123-super-secret" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "model.gguf",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "input_audio",
+            "input_audio": { "data": "UklGRi4AAABXQVZF...", "format": "wav" }
+          },
+          { "type": "text", "text": "Transcreva este áudio." }
+        ]
+      }
+    ],
+    "stream": false
+  }'
+```
+
+Exemplo com vídeo:
+
+```bash
+curl http://localhost:3000/v1/chat/completions \
+  -H "Authorization: Bearer abc123-super-secret" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "model.gguf",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "input_video",
+            "input_video": { "data": "AAAAIGZ0eXBpc29t..." }
+          },
+          { "type": "text", "text": "O que acontece neste vídeo?" }
+        ]
+      }
+    ],
+    "stream": false
+  }'
+```
+
+> **Requisitos:**
+> - Um build recente do llama.cpp com suporte a áudio/vídeo (o Gemma 4 E2B/E4B/12B tem suporte nativo a áudio);
+> - `ffmpeg` no container para vídeo (`ghcr.io/ggml-org/llama.cpp:server` recente já inclui);
+> - Áudio deve estar em **WAV, MP3 ou FLAC** (formatos do miniaudio). O `playground.html` converte automaticamente uploads e gravações do microfone para **WAV 16kHz mono** antes de enviar;
+> - Vídeo é decodificado via `ffmpeg` (H.264/MP4, WebM, etc.);
+> - Arquivos grandes podem exigir aumentar `BODY_LIMIT` no `.env`.
 
 Resposta (exemplo real):
 
@@ -313,6 +368,8 @@ Abra o `playground.html` no navegador para testar todos os recursos sem escrever
 - Checkbox "Mostrar pensamento" (liga/desliga o `thinking`);
 - Checkbox "Sem contexto (stateless)" (cada mensagem tratada como a primeira);
 - Upload de imagem com preview (enviada como data URI base64);
+- Upload de áudio e vídeo com preview (enviados como `input_audio` e `input_video`);
+- Gravação de áudio pelo microfone (botão com ícone de microfone, máx. 30s), enviada como `input_audio`;
 - Botão "Histórico de erros": registro de todas as falhas com data, status HTTP, endpoint, body enviado e detalhes — para debugar sem abrir o DevTools.
 
 > Lembre-se de ajustar `API_TOKEN` (e, se necessário, `API_URL` e `MODEL`) no topo do arquivo se você mudar o valor no `.env`.
