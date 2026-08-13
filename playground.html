@@ -129,6 +129,9 @@
 
     #errorButton {
       position: relative;
+    }
+
+    #settingsButton {
       margin-left: auto;
     }
 
@@ -229,6 +232,27 @@
     #clearErrors {
       margin-left: 8px;
     }
+
+    .settings-form label {
+      display: block;
+      margin-bottom: 4px;
+      font-weight: bold;
+    }
+
+    .settings-form input[type="text"],
+    .settings-form input[type="password"] {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px;
+      margin-bottom: 12px;
+      font-family: monospace;
+    }
+
+    .settings-form .settings-hint {
+      color: #888;
+      font-size: 12px;
+      margin-bottom: 12px;
+    }
   </style>
 </head>
 
@@ -237,7 +261,7 @@
   <h1>LLM API Playground</h1>
   <p class="subtitle">
     Página de teste visual do proxy <code>/v1/chat/completions</code>.
-    Ajuste <code>API_URL</code>, <code>API_TOKEN</code> e <code>MODEL</code> no topo do script.
+    Use o botão <strong>Settings</strong> para alterar a URL e o token.
   </p>
 
   <div id="chat"></div>
@@ -262,6 +286,8 @@
 
     <button id="send" type="button">Enviar</button>
 
+    <button id="settingsButton" type="button">Settings</button>
+
     <button id="errorButton" type="button">
       Histórico de erros
       <span id="errorBadge">0</span>
@@ -274,6 +300,50 @@
   </div>
 
   <img id="imagePreview" hidden alt="Preview">
+
+  <!-- Modal de settings -->
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal">
+      <header>
+        <h2>Settings</h2>
+        <button id="closeSettings" type="button">Fechar</button>
+      </header>
+
+      <div class="settings-form">
+        <label for="settingsUrl">URL da API</label>
+        <input
+          type="text"
+          id="settingsUrl"
+          spellcheck="false"
+          autocomplete="off"
+        >
+        <p class="settings-hint">
+          Endereço completo do endpoint, ex.:
+          <code>http://192.168.0.10:3000/v1/chat/completions</code>
+          ou <code>https://api.exemplo.com/v1/chat/completions</code>.
+          Se não informar <code>http://</code>/<code>https://</code>,
+          é adicionado <code>https://</code> automaticamente.
+        </p>
+
+        <label for="settingsToken">Token</label>
+        <input
+          type="password"
+          id="settingsToken"
+          spellcheck="false"
+          autocomplete="off"
+        >
+        <p class="settings-hint">
+          Token de autenticação enviado como
+          <code>Authorization: Bearer &lt;token&gt;</code>.
+        </p>
+
+        <div>
+          <button id="saveSettings" type="button">Salvar</button>
+          <button id="resetSettings" type="button">Restaurar padrão</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Modal de histórico de erros -->
   <div class="modal-overlay" id="errorModal">
@@ -291,9 +361,53 @@
   </div>
 
   <script>
-    const API_URL = "http://localhost:3000/v1/chat/completions";
-    const API_TOKEN = "abc123-super-secret";
+    const DEFAULT_URL = "http://localhost:3000/v1/chat/completions";
+    const DEFAULT_TOKEN = "abc123-super-secret";
     const MODEL = "model.gguf";
+
+    const SETTINGS_KEY = "llm-api-playground-settings";
+
+    function normalizeUrl(value) {
+      let url = String(value || "").trim();
+
+      if (!url) {
+        return null;
+      }
+
+      if (!/^https?:\/\//i.test(url)) {
+        url = "https://" + url;
+      }
+
+      try {
+        const parsed = new URL(url);
+
+        if (!parsed.protocol || !parsed.host) {
+          return null;
+        }
+
+        return parsed.toString();
+      } catch {
+        return null;
+      }
+    }
+
+    function loadSettings() {
+      try {
+        const stored = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
+        return {
+          url: normalizeUrl(stored.url) || DEFAULT_URL,
+          token: stored.token || DEFAULT_TOKEN
+        };
+      } catch {
+        return { url: DEFAULT_URL, token: DEFAULT_TOKEN };
+      }
+    }
+
+    function saveSettingsToStorage(settings) {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    }
+
+    let { url: API_URL, token: API_TOKEN } = loadSettings();
 
     const chat = document.getElementById("chat");
     const input = document.getElementById("input");
@@ -312,6 +426,14 @@
     const errorEmpty = document.getElementById("errorEmpty");
     const clearErrorsButton = document.getElementById("clearErrors");
     const closeErrorsButton = document.getElementById("closeErrors");
+
+    const settingsButton = document.getElementById("settingsButton");
+    const settingsModal = document.getElementById("settingsModal");
+    const settingsUrl = document.getElementById("settingsUrl");
+    const settingsToken = document.getElementById("settingsToken");
+    const saveSettingsButton = document.getElementById("saveSettings");
+    const resetSettingsButton = document.getElementById("resetSettings");
+    const closeSettingsButton = document.getElementById("closeSettings");
 
     const messages = [];
     const errorHistory = [];
@@ -425,6 +547,65 @@
         message: "Promise rejeitada",
         details: event.reason?.stack || String(event.reason)
       });
+    });
+
+    /* ---------- Settings ---------- */
+
+    function openSettings() {
+      settingsUrl.value = API_URL;
+      settingsToken.value = API_TOKEN;
+      settingsModal.classList.add("open");
+    }
+
+    function closeSettings() {
+      settingsModal.classList.remove("open");
+    }
+
+    function saveSettings() {
+      const url = normalizeUrl(settingsUrl.value);
+      const token = settingsToken.value.trim();
+
+      if (!url) {
+        setStatus("URL da API inválida. Inclua um domínio válido.", true);
+        return;
+      }
+
+      if (!token) {
+        setStatus("Informe o token.", true);
+        return;
+      }
+
+      API_URL = url;
+      API_TOKEN = token;
+
+      saveSettingsToStorage({ url, token });
+      closeSettings();
+
+      setStatus(
+        `Settings atualizados. Conectando em: ${url}`
+      );
+    }
+
+    settingsButton.addEventListener("click", openSettings);
+    closeSettingsButton.addEventListener("click", closeSettings);
+    saveSettingsButton.addEventListener("click", saveSettings);
+
+    resetSettingsButton.addEventListener("click", () => {
+      API_URL = DEFAULT_URL;
+      API_TOKEN = DEFAULT_TOKEN;
+
+      saveSettingsToStorage({ url: DEFAULT_URL, token: DEFAULT_TOKEN });
+
+      settingsUrl.value = DEFAULT_URL;
+      settingsToken.value = DEFAULT_TOKEN;
+
+      setStatus("Settings restaurados para o padrão.");
+    });
+
+    settingsModal.addEventListener("click", (event) => {
+      if (event.target === settingsModal) {
+        closeSettings();
+      }
     });
 
     /* ---------- Imagem ---------- */
@@ -614,6 +795,8 @@
 
       setStatus("Gerando...");
 
+      const endpoint = normalizeUrl(API_URL) || API_URL;
+
       const requestBody = JSON.stringify({
         model: MODEL,
         messages,
@@ -623,7 +806,7 @@
       });
 
       try {
-        const response = await fetch(API_URL, {
+        const response = await fetch(endpoint, {
           method: "POST",
 
           headers: {
@@ -640,7 +823,7 @@
           const entry = recordError({
             message,
             status: response.status,
-            endpoint: API_URL,
+            endpoint,
             requestBody,
             details: `HTTP ${response.status} ${response.statusText}`
           });
@@ -657,7 +840,7 @@
         if (!response.body) {
           const entry = recordError({
             message: "A API não retornou um stream.",
-            endpoint: API_URL,
+            endpoint,
             requestBody
           });
 
@@ -681,7 +864,7 @@
           } catch (error) {
             const entry = recordError({
               message: `Stream interrompido: ${error.message || "erro de leitura"}`,
-              endpoint: API_URL,
+              endpoint,
               requestBody,
               details: error.stack || String(error)
             });
@@ -745,7 +928,7 @@
             } catch (error) {
               const entry = recordError({
                 message: "Chunk SSE inválido",
-                endpoint: API_URL,
+                endpoint,
                 requestBody,
                 details: data
               });
@@ -767,7 +950,7 @@
           message:
             "Falha na requisição: " +
             (error.message || "sem detalhes"),
-          endpoint: API_URL,
+          endpoint,
           requestBody,
           details: error.stack || String(error)
         });
