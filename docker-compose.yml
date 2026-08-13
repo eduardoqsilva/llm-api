@@ -1,0 +1,30 @@
+services:
+
+  api:
+    build: .
+    container_name: llm-api
+    env_file:
+      - .env
+    ports:
+      - "3000:3000"
+    depends_on:
+      - llama
+
+  llama:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    container_name: llama-server
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./models:/models
+    command:
+      [
+        "-m",
+        "/models/model.gguf",
+        "--mmproj",
+        "/models/mmproj-gemma-4-E2B-it-Q8_0.gguf",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8080"
+      ]

@@ -1,0 +1,31 @@
+# Dependências
+/node_modules
+
+# Build
+/dist
+
+# Modelos (arquivos GGUF grandes)
+/models
+
+# Variáveis de ambiente
+/.env
+/.env.local
+/.env.*.local
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Editores / IDE
+.vscode/
+.idea/
+*.swp
+
+# Temporários
+.tmp/
+.cache/
