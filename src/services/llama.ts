@@ -15,10 +15,10 @@ export async function chatCompletion(
   if (typeof thinking === 'boolean') {
     body.chat_template_kwargs = {
       ...(body.chat_template_kwargs ?? {}),
-      enable_thinking: body.thinking,
+      enable_thinking: thinking,
     }
 
-    if (!body.thinking) {
+    if (!thinking) {
       body.reasoning_effort = 'none'
     }
 

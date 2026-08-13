@@ -1,12 +1,12 @@
 import cors from '@fastify/cors'
 import Fastify from 'fastify'
 import { env } from './config/env.js'
-import authPlugin from './plugins/auth.js'
+import { authenticate } from './plugins/auth.js'
 import chatRoute from './routes/chat.js'
 
-export function buildApp() {
+export function buildApp(options: { logger?: boolean } = {}) {
   const app = Fastify({
-    logger: true,
+    logger: options.logger ?? true,
     bodyLimit: env.bodyLimit,
   })
 
@@ -14,9 +14,11 @@ export function buildApp() {
     origin: true,
   })
 
-  app.register(authPlugin)
+  app.register(async (app) => {
+    app.addHook('onRequest', authenticate)
 
-  app.register(chatRoute)
+    app.register(chatRoute)
+  })
 
   app.get('/health', async () => {
     return {

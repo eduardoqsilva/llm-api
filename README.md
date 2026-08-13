@@ -367,9 +367,27 @@ llm-api/
 │   ├── plugins/auth.ts      # validação do Bearer token
 │   ├── routes/chat.ts       # POST /v1/chat/completions (stream/multimodal)
 │   └── services/llama.ts    # proxy p/ llama.cpp + tradução do thinking
+├── test/                    # testes unitários e de integração (Vitest)
+├── biome.json               # formatação e lint (Biome)
+├── lefthook.yml             # hooks de git (formatação, typecheck, testes)
+├── vitest.config.ts         # config dos testes (token/URL de teste)
 ├── request.json             # exemplo de body JSON
 └── playground.html          # página de teste visual no navegador
 ```
+
+## Testes (Vitest)
+
+Os testes cobrem o proxy (`chatCompletion`) e a API montada (`buildApp`), incluindo autenticação, streaming (SSE) e CORS. O `pre-commit` do lefthook roda formatação + typecheck, e o `pre-push` roda os testes.
+
+```bash
+# rodar os testes uma vez
+npm test
+
+# rodar em modo watch (durante o desenvolvimento)
+npx vitest
+```
+
+> As variáveis `API_TOKEN` e `LLAMA_URL` são definidas no `vitest.config.ts` (ex.: `test-token` e `http://llama:8080`) — os testes não dependem do `.env`.
 
 ## Desenvolvimento (sem Docker)
 
@@ -379,6 +397,16 @@ npm install
 
 # rodar a API localmente (exige o llama-server acessível)
 npm run dev          # http://localhost:3000
+
+# testes
+npm test
+
+# lint + formatação
+npm run check        # verifica
+npm run check:fix    # corrige automaticamente
+
+# typecheck
+npm run typecheck
 
 # build de produção
 npm run build        # gera dist/
