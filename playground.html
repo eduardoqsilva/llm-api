@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LLM API Playground</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 900px;
+      margin: 30px auto;
+      padding: 0 20px;
+    }
+
+    h1 {
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      color: #666;
+      font-size: 13px;
+      margin: 0 0 16px;
+    }
+
+    #chat {
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      padding: 15px;
+      min-height: 400px;
+      margin-bottom: 15px;
+      overflow-y: auto;
+    }
+
+    .message {
+      margin-bottom: 20px;
+      white-space: pre-wrap;
+    }
+
+    .user {
+      font-weight: bold;
+    }
+
+    .assistant {
+      margin-top: 5px;
+    }
+
+    .reasoning {
+      color: #777;
+      font-size: 14px;
+      border-left: 3px solid #ccc;
+      padding-left: 10px;
+      margin: 8px 0;
+      white-space: pre-wrap;
+    }
+
+    .error-card {
+      margin-top: 5px;
+      padding: 10px;
+      border: 1px solid #e0a0a0;
+      border-radius: 6px;
+      background: #fdf0f0;
+      color: #a33;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .error-card .error-title {
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+
+    .error-card .error-detail {
+      color: #888;
+      font-size: 12px;
+      margin-top: 6px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 80px;
+      resize: vertical;
+      box-sizing: border-box;
+      padding: 10px;
+    }
+
+    button {
+      padding: 8px 15px;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: center;
+      margin-top: 8px;
+    }
+
+    label {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    #status {
+      color: #666;
+      font-size: 13px;
+      margin: 8px 0;
+    }
+
+    #status.error {
+      color: #a33;
+      font-weight: bold;
+    }
+
+    #imageRow {
+      margin-top: 8px;
+    }
+
+    #imagePreview {
+      max-width: 200px;
+      max-height: 200px;
+      margin-top: 8px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+
+    #errorButton {
+      position: relative;
+      margin-left: auto;
+    }
+
+    #errorBadge {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      background: #c33;
+      color: #fff;
+      font-size: 11px;
+      font-weight: bold;
+      border-radius: 10px;
+      padding: 1px 6px;
+      display: none;
+    }
+
+    /* Modal de histórico de erros */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 100;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 30px;
+      overflow-y: auto;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal {
+      background: #fff;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 700px;
+      padding: 16px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .modal header h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .modal header button {
+      margin-top: 0;
+    }
+
+    #errorList {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      max-height: 60vh;
+      overflow-y: auto;
+    }
+
+    #errorList li {
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      padding: 10px;
+      margin-bottom: 8px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    #errorList li .error-meta {
+      color: #888;
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
+    #errorList li .error-msg {
+      font-weight: bold;
+      color: #a33;
+    }
+
+    #errorList li .error-detail {
+      color: #555;
+      font-size: 12px;
+      margin-top: 6px;
+    }
+
+    #errorEmpty {
+      color: #888;
+      font-style: italic;
+    }
+
+    #clearErrors {
+      margin-left: 8px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>LLM API Playground</h1>
+  <p class="subtitle">
+    Página de teste visual do proxy <code>/v1/chat/completions</code>.
+    Ajuste <code>API_URL</code>, <code>API_TOKEN</code> e <code>MODEL</code> no topo do script.
+  </p>
+
+  <div id="chat"></div>
+
+  <div id="status"></div>
+
+  <textarea
+    id="input"
+    placeholder="Digite sua mensagem..."
+  ></textarea>
+
+  <div class="controls">
+    <label>
+      <input type="checkbox" id="thinking" checked>
+      Mostrar pensamento
+    </label>
+
+    <label>
+      <input type="checkbox" id="stateless">
+      Sem contexto (stateless)
+    </label>
+
+    <button id="send">Enviar</button>
+
+    <button id="errorButton" type="button">
+      Histórico de erros
+      <span id="errorBadge">0</span>
+    </button>
+  </div>
+
+  <div id="imageRow">
+    <input type="file" id="image" accept="image/*">
+    <button id="clearImage" type="button" hidden>Remover imagem</button>
+  </div>
+
+  <img id="imagePreview" hidden alt="Preview">
+
+  <!-- Modal de histórico de erros -->
+  <div class="modal-overlay" id="errorModal">
+    <div class="modal">
+      <header>
+        <h2>Histórico de erros</h2>
+        <div>
+          <button id="clearErrors" type="button">Limpar</button>
+          <button id="closeErrors" type="button">Fechar</button>
+        </div>
+      </header>
+      <ul id="errorList"></ul>
+      <p id="errorEmpty">Nenhum erro registrado.</p>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = "http://localhost:3000/v1/chat/completions";
+    const API_TOKEN = "abc123-super-secret";
+    const MODEL = "model.gguf";
+
+    const chat = document.getElementById("chat");
+    const input = document.getElementById("input");
+    const sendButton = document.getElementById("send");
+    const thinkingCheckbox = document.getElementById("thinking");
+    const statelessCheckbox = document.getElementById("stateless");
+    const status = document.getElementById("status");
+    const imageInput = document.getElementById("image");
+    const imagePreview = document.getElementById("imagePreview");
+    const clearImageButton = document.getElementById("clearImage");
+
+    const errorButton = document.getElementById("errorButton");
+    const errorBadge = document.getElementById("errorBadge");
+    const errorModal = document.getElementById("errorModal");
+    const errorList = document.getElementById("errorList");
+    const errorEmpty = document.getElementById("errorEmpty");
+    const clearErrorsButton = document.getElementById("clearErrors");
+    const closeErrorsButton = document.getElementById("closeErrors");
+
+    const messages = [];
+    const errorHistory = [];
+
+    /* ---------- Histórico de erros ---------- */
+
+    function formatTimestamp(date) {
+      return date.toLocaleTimeString("pt-BR") + "." +
+        String(date.getMilliseconds()).padStart(3, "0");
+    }
+
+    function recordError({ message, status = null, endpoint = null, requestBody = null, details = null }) {
+      const entry = {
+        id: Date.now() + "-" + Math.random().toString(36).slice(2, 7),
+        timestamp: formatTimestamp(new Date()),
+        message,
+        status,
+        endpoint,
+        requestBody,
+        details
+      };
+
+      errorHistory.push(entry);
+      updateErrorBadge();
+      renderErrorList();
+      return entry;
+    }
+
+    function updateErrorBadge() {
+      const count = errorHistory.length;
+
+      errorBadge.textContent = count;
+      errorBadge.style.display = count > 0 ? "inline-block" : "none";
+    }
+
+    function renderErrorList() {
+      errorList.innerHTML = "";
+
+      if (errorHistory.length === 0) {
+        errorEmpty.style.display = "block";
+        return;
+      }
+
+      errorEmpty.style.display = "none";
+
+      for (const entry of errorHistory) {
+        const li = document.createElement("li");
+
+        const meta = document.createElement("div");
+        meta.className = "error-meta";
+        meta.textContent =
+          entry.timestamp +
+          (entry.status ? " · HTTP " + entry.status : "") +
+          (entry.endpoint ? " · " + entry.endpoint : "");
+
+        const msg = document.createElement("div");
+        msg.className = "error-msg";
+        msg.textContent = entry.message;
+
+        li.appendChild(meta);
+        li.appendChild(msg);
+
+        if (entry.requestBody) {
+          const body = document.createElement("div");
+          body.className = "error-detail";
+          body.textContent = "Body: " + entry.requestBody;
+          li.appendChild(body);
+        }
+
+        if (entry.details) {
+          const detail = document.createElement("div");
+          detail.className = "error-detail";
+          detail.textContent = entry.details;
+          li.appendChild(detail);
+        }
+
+        errorList.appendChild(li);
+      }
+    }
+
+    errorButton.addEventListener("click", () => {
+      renderErrorList();
+      errorModal.classList.add("open");
+    });
+
+    closeErrorsButton.addEventListener("click", () => {
+      errorModal.classList.remove("open");
+    });
+
+    clearErrorsButton.addEventListener("click", () => {
+      errorHistory.length = 0;
+      updateErrorBadge();
+      renderErrorList();
+    });
+
+    errorModal.addEventListener("click", (event) => {
+      if (event.target === errorModal) {
+        errorModal.classList.remove("open");
+      }
+    });
+
+    window.addEventListener("error", (event) => {
+      recordError({
+        message: event.message || "Erro não tratado",
+        details: event.error?.stack || event.message
+      });
+    });
+
+    window.addEventListener("unhandledrejection", (event) => {
+      recordError({
+        message: "Promise rejeitada",
+        details: event.reason?.stack || String(event.reason)
+      });
+    });
+
+    /* ---------- Imagem ---------- */
+
+    function readImageAsDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function getImageDataUrl() {
+      if (!imageInput.files || imageInput.files.length === 0) {
+        return null;
+      }
+
+      return imagePreview.src || null;
+    }
+
+    function clearImage() {
+      imageInput.value = "";
+      imagePreview.src = "";
+      imagePreview.hidden = true;
+      clearImageButton.hidden = true;
+    }
+
+    imageInput.addEventListener("change", async () => {
+      const file = imageInput.files?.[0];
+
+      if (!file) {
+        return;
+      }
+
+      const dataUrl = await readImageAsDataUrl(file);
+
+      imagePreview.src = dataUrl;
+      imagePreview.hidden = false;
+      clearImageButton.hidden = false;
+    });
+
+    clearImageButton.addEventListener("click", clearImage);
+
+    /* ---------- Chat ---------- */
+
+    function addUserMessage(content) {
+      const container = document.createElement("div");
+      container.className = "message";
+
+      container.innerHTML = `
+        <div class="user">Você:</div>
+        <div>${escapeHtml(content)}</div>
+      `;
+
+      chat.appendChild(container);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function createAssistantMessage() {
+      const container = document.createElement("div");
+      container.className = "message";
+
+      const reasoning = document.createElement("div");
+      reasoning.className = "reasoning";
+
+      const content = document.createElement("div");
+      content.className = "assistant";
+
+      container.innerHTML = `<div class="user">Modelo:</div>`;
+
+      container.appendChild(reasoning);
+      container.appendChild(content);
+
+      chat.appendChild(container);
+
+      return {
+        container,
+        reasoning,
+        content
+      };
+    }
+
+    function showErrorInChat(assistant, entry) {
+      const card = document.createElement("div");
+      card.className = "error-card";
+
+      const title = document.createElement("div");
+      title.className = "error-title";
+      title.textContent =
+        "Erro na requisição" +
+        (entry.status ? " (HTTP " + entry.status + ")" : "");
+
+      const msg = document.createElement("div");
+      msg.textContent = entry.message;
+
+      card.appendChild(title);
+      card.appendChild(msg);
+
+      if (entry.requestBody) {
+        const detail = document.createElement("div");
+        detail.className = "error-detail";
+        detail.textContent = "Body enviado: " + entry.requestBody;
+        card.appendChild(detail);
+      }
+
+      if (entry.details) {
+        const detail = document.createElement("div");
+        detail.className = "error-detail";
+        detail.textContent = entry.details;
+        card.appendChild(detail);
+      }
+
+      assistant.content.appendChild(card);
+    }
+
+    function escapeHtml(text) {
+      return text
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function setStatus(text, isError = false) {
+      status.textContent = text;
+      status.className = isError ? "error" : "";
+    }
+
+    async function parseErrorResponse(response) {
+      const text = await response.text();
+
+      try {
+        const data = JSON.parse(text);
+
+        if (data?.error) {
+          const err = data.error;
+
+          return (
+            (err.message || "Sem mensagem") +
+            (err.type ? "\nTipo: " + err.type : "")
+          );
+        }
+      } catch {
+        /* não é JSON — usa o texto bruto */
+      }
+
+      return text || ("HTTP " + response.status + " " + response.statusText);
+    }
+
+    async function sendMessage() {
+      const text = input.value.trim();
+      const imageDataUrl = getImageDataUrl();
+
+      if (!text && !imageDataUrl) {
+        setStatus("Digite uma mensagem ou anexe uma imagem.", true);
+        return;
+      }
+
+      input.value = "";
+      sendButton.disabled = true;
+
+      const content = imageDataUrl
+        ? [
+            {
+              type: "image_url",
+              image_url: { url: imageDataUrl }
+            },
+            ...(text
+              ? [{ type: "text", text }]
+              : [])
+          ]
+        : text;
+
+      addUserMessage(text || "[imagem enviada]");
+
+      messages.push({
+        role: "user",
+        content
+      });
+
+      clearImage();
+
+      const assistant = createAssistantMessage();
+
+      setStatus("Gerando...");
+
+      const requestBody = JSON.stringify({
+        model: MODEL,
+        messages,
+        stream: true,
+        thinking: thinkingCheckbox.checked,
+        stateless: statelessCheckbox.checked
+      });
+
+      try {
+        const response = await fetch(API_URL, {
+          method: "POST",
+
+          headers: {
+            "Authorization": `Bearer ${API_TOKEN}`,
+            "Content-Type": "application/json"
+          },
+
+          body: requestBody
+        });
+
+        if (!response.ok) {
+          const message = await parseErrorResponse(response);
+
+          const entry = recordError({
+            message,
+            status: response.status,
+            endpoint: API_URL,
+            requestBody,
+            details: "HTTP " + response.status + " " + response.statusText
+          });
+
+          showErrorInChat(assistant, entry);
+          setStatus(
+            "Erro HTTP " + response.status + " — veja o histórico de erros.",
+            true
+          );
+
+          return;
+        }
+
+        if (!response.body) {
+          const entry = recordError({
+            message: "A API não retornou um stream.",
+            endpoint: API_URL,
+            requestBody
+          });
+
+          showErrorInChat(assistant, entry);
+          setStatus("A API não retornou um stream.", true);
+
+          return;
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        let buffer = "";
+        let fullContent = "";
+
+        while (true) {
+          let done;
+
+          try {
+            ({ done, value } = await reader.read());
+          } catch (error) {
+            const entry = recordError({
+              message: "Stream interrompido: " + (error.message || "erro de leitura"),
+              endpoint: API_URL,
+              requestBody,
+              details: error.stack || String(error)
+            });
+
+            showErrorInChat(assistant, entry);
+            setStatus("Stream interrompido — veja o histórico de erros.", true);
+
+            return;
+          }
+
+          if (done) {
+            break;
+          }
+
+          buffer += decoder.decode(value, {
+            stream: true
+          });
+
+          const lines = buffer.split("\n");
+
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+
+            if (!trimmed) {
+              continue;
+            }
+
+            if (!trimmed.startsWith("data:")) {
+              continue;
+            }
+
+            const data = trimmed.slice(5).trim();
+
+            if (data === "[DONE]") {
+              continue;
+            }
+
+            try {
+              const chunk = JSON.parse(data);
+
+              const delta = chunk.choices?.[0]?.delta;
+
+              if (!delta) {
+                continue;
+              }
+
+              if (delta.reasoning_content) {
+                assistant.reasoning.textContent +=
+                  delta.reasoning_content;
+              }
+
+              if (delta.content) {
+                fullContent += delta.content;
+                assistant.content.textContent = fullContent;
+              }
+
+              chat.scrollTop = chat.scrollHeight;
+
+            } catch (error) {
+              const entry = recordError({
+                message: "Chunk SSE inválido",
+                endpoint: API_URL,
+                requestBody,
+                details: data
+              });
+
+              showErrorInChat(assistant, entry);
+            }
+          }
+        }
+
+        messages.push({
+          role: "assistant",
+          content: fullContent
+        });
+
+        setStatus("Pronto.");
+
+      } catch (error) {
+        const entry = recordError({
+          message:
+            "Falha na requisição: " +
+            (error.message || "sem detalhes"),
+          endpoint: API_URL,
+          requestBody,
+          details: error.stack || String(error)
+        });
+
+        showErrorInChat(assistant, entry);
+        setStatus(
+          "Falha na requisição — verifique se a API está no ar e se o token está correto.",
+          true
+        );
+
+      } finally {
+        sendButton.disabled = false;
+        input.focus();
+      }
+    }
+
+    sendButton.addEventListener(
+      "click",
+      sendMessage
+    );
+
+    input.addEventListener(
+      "keydown",
+      (event) => {
+        if (
+          event.key === "Enter" &&
+          !event.shiftKey
+        ) {
+          event.preventDefault();
+          sendMessage();
+        }
+      }
+    );
+  </script>
+
+</body>
+</html>

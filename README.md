@@ -5,7 +5,7 @@ Proxy HTTP (Fastify) que expõe uma API compatível com o OpenAI Chat Completion
 ## Arquitetura
 
 ```
-Cliente (curl / test.html / sua app)
+Cliente (curl / playground.html / sua app)
         │  POST /v1/chat/completions  (Bearer API_TOKEN)
         ▼
 ┌───────────────────┐        ┌───────────────────┐
@@ -178,6 +178,7 @@ Content-Type: application/json
 | `messages` | array | Histórico de conversa (padrão OpenAI). |
 | `stream` | boolean | `true` = resposta em SSE (streaming). |
 | `thinking` | boolean | Controle do pensamento do modelo (mapa para `enable_thinking` e `reasoning_effort` no llama.cpp). |
+| `stateless` | boolean | `true` = sem contexto: cada requisição é tratada como a primeira (só a mensagem atual é enviada). Útil para tradução. Padrão: `false` (histórico completo). |
 | `temperature`, `top_p`, `max_tokens`, ... | vários | Parâmetros de amostragem repassados ao llama.cpp. |
 
 #### Exemplos
@@ -232,7 +233,28 @@ curl http://localhost:3000/v1/chat/completions \
 
 Com `thinking: true` (ou omitido), a resposta vem com `reasoning_content` separado do `content`.
 
-**4. Multimodal (imagem)**
+**4. Sem contexto (`stateless: true`)**
+
+Ideal para tradução: cada requisição é tratada como a primeira mensagem — o histórico é ignorado e só a mensagem atual é enviada ao modelo:
+
+```bash
+curl http://localhost:3000/v1/chat/completions \
+  -H "Authorization: Bearer abc123-super-secret" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "model.gguf",
+    "messages": [
+      { "role": "user", "content": "Traduza para inglês: Bom dia." }
+    ],
+    "stateless": true,
+    "thinking": false,
+    "stream": false
+  }'
+```
+
+> Apesar de `stateless: true` ignorar o histórico, você ainda envia `messages` normalmente (a API usa o último item). Por padrão (`stateless` omitido ou `false`), o histórico completo é mantido.
+
+**5. Multimodal (imagem)**
 
 Imagens são enviadas como `image_url` dentro de `messages[].content` (formato OpenAI). A URL aceita:
 
@@ -283,15 +305,17 @@ Resposta (exemplo real):
 
 > Em streaming, o pensamento chega em `delta.reasoning_content` e a resposta em `delta.content`.
 
-## Página de teste (`test.html`)
+## Página de teste (`playground.html`)
 
-Abra o `test.html` no navegador para testar todos os recursos sem escrever curl:
+Abra o `playground.html` no navegador para testar todos os recursos sem escrever curl:
 
 - Chat com streaming;
 - Checkbox "Mostrar pensamento" (liga/desliga o `thinking`);
-- Upload de imagem com preview (enviada como data URI base64).
+- Checkbox "Sem contexto (stateless)" (cada mensagem tratada como a primeira);
+- Upload de imagem com preview (enviada como data URI base64);
+- Botão "Histórico de erros": registro de todas as falhas com data, status HTTP, endpoint, body enviado e detalhes — para debugar sem abrir o DevTools.
 
-> Lembre-se de ajustar `API_TOKEN` no topo do arquivo se você mudar o valor no `.env`.
+> Lembre-se de ajustar `API_TOKEN` (e, se necessário, `API_URL` e `MODEL`) no topo do arquivo se você mudar o valor no `.env`.
 
 ## Como funciona o parâmetro `thinking`
 
@@ -315,6 +339,19 @@ if (typeof thinking === 'boolean') {
 
 > Observação: `--reasoning off` é flag de **inicialização** do `llama-server`, não dá para alternar por request. O controle por request é feito via `chat_template_kwargs.enable_thinking` e `reasoning_effort=none`, que são exatamente os campos usados acima.
 
+## Como funciona o parâmetro `stateless`
+
+Quando `stateless: true`, o serviço descarta todo o histórico e envia apenas o último item de `messages` para o llama.cpp — o modelo trata cada requisição como a primeira:
+
+```ts
+if (stateless === true && Array.isArray(body.messages)) {
+  body.messages = body.messages.slice(-1)
+}
+```
+
+- `stateless: true` → somente a mensagem atual é enviada ao modelo.
+- `stateless` omitido ou `false` → o histórico completo é repassado (padrão).
+
 ## Estrutura do projeto
 
 ```
@@ -322,7 +359,7 @@ llm-api/
 ├── docker-compose.yml       # orquestra api + llama-server
 ├── dockerfile               # build da imagem Node (API)
 ├── .env                     # configuração (token, portas, limites)
-├── models/                  # model.gguf + mmproj-*.gguf (montado no container)
+├── models/                  # model.gguf + mmproj.gguf (montado no container)
 ├── src/
 │   ├── server.ts            # entrypoint do Fastify
 │   ├── app.ts               # montagem do app (CORS, auth, rotas, bodyLimit)
@@ -331,7 +368,7 @@ llm-api/
 │   ├── routes/chat.ts       # POST /v1/chat/completions (stream/multimodal)
 │   └── services/llama.ts    # proxy p/ llama.cpp + tradução do thinking
 ├── request.json             # exemplo de body JSON
-└── test.html                # página de teste no navegador
+└── playground.html          # página de teste visual no navegador
 ```
 
 ## Desenvolvimento (sem Docker)

@@ -18,10 +18,15 @@ const chatRoute: FastifyPluginAsync = async (fastify) => {
     const body = request.body as {
       stream?: boolean
       thinking?: boolean
+      stateless?: boolean
       messages?: ChatMessage[]
     }
 
-    const response = await chatCompletion(request.body, body.thinking)
+    const response = await chatCompletion(
+      request.body,
+      body.thinking,
+      body.stateless,
+    )
 
     if (body.stream) {
       const origin = request.headers.origin

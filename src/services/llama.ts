@@ -1,6 +1,10 @@
 import { env } from '../config/env.js'
 
-export async function chatCompletion(body: any, thinking?: boolean) {
+export async function chatCompletion(
+  body: any,
+  thinking?: boolean,
+  stateless?: boolean,
+) {
   if (typeof thinking === 'boolean') {
     body.chat_template_kwargs = {
       ...(body.chat_template_kwargs ?? {}),
@@ -12,6 +16,10 @@ export async function chatCompletion(body: any, thinking?: boolean) {
     }
 
     delete body.thinking
+  }
+
+  if (stateless === true && Array.isArray(body.messages)) {
+    body.messages = body.messages.slice(-1)
   }
 
   const response = await fetch(
