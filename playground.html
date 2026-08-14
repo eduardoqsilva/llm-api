@@ -138,6 +138,50 @@
       display: none;
     }
 
+    /* ---------- Tabs ---------- */
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      padding: 0 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .tab {
+      padding: 10px 14px;
+      border: none;
+      background: transparent;
+      font: inherit;
+      font-size: 13.5px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: color 0.15s;
+    }
+
+    .tab:hover {
+      color: var(--text);
+    }
+
+    .tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      font-weight: 600;
+    }
+
+    .panel {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel[hidden] {
+      display: none;
+    }
+
     /* ---------- Chat ---------- */
 
     .chat {
@@ -482,6 +526,149 @@
       height: 16px;
     }
 
+    /* ---------- Translate ---------- */
+
+    .translate {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      display: flex;
+      padding: 20px 0;
+    }
+
+    .translate-inner {
+      width: 100%;
+      max-width: var(--max-w);
+      margin: 0 auto;
+      padding: 0 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      height: 100%;
+    }
+
+    .translate-inner > label,
+    .translate-result-header {
+      font-weight: 600;
+      font-size: 13.5px;
+    }
+
+    .translate-inner textarea {
+      width: 100%;
+      border: 1px solid var(--border-strong);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font: inherit;
+      line-height: 1.5;
+      resize: none;
+      outline: none;
+      background: var(--surface);
+      color: var(--text);
+      max-height: none;
+    }
+
+    .translate-inner textarea:focus {
+      border-color: var(--accent);
+    }
+
+    #translateInput {
+      flex: 1;
+      min-height: 120px;
+    }
+
+    .translate-options {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .translate-options input[type="text"] {
+      flex: 1;
+      min-width: 160px;
+      padding: 9px 12px;
+      border: 1px solid var(--border-strong);
+      border-radius: 10px;
+      font: inherit;
+      font-size: 13.5px;
+      outline: none;
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    .translate-options input[type="text"]:focus {
+      border-color: var(--accent);
+    }
+
+    .translate-actions {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .primary-btn {
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      padding: 9px 18px;
+      border-radius: 20px;
+      font: inherit;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    .primary-btn:hover {
+      background: #0d8a6b;
+    }
+
+    .primary-btn:active {
+      transform: scale(0.97);
+    }
+
+    .primary-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .ghost-btn {
+      padding: 6px 12px;
+      border: 1px solid var(--border-strong);
+      background: var(--surface);
+      border-radius: 10px;
+      cursor: pointer;
+      font: inherit;
+      font-size: 12.5px;
+      color: var(--text);
+    }
+
+    .ghost-btn:hover:not(:disabled) {
+      background: var(--bg);
+    }
+
+    .ghost-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .translate-result-wrap {
+      flex: 1;
+      min-height: 120px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .translate-result-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    #translateResult {
+      flex: 1;
+      min-height: 120px;
+    }
+
     /* ---------- Modais ---------- */
 
     .modal-overlay {
@@ -622,7 +809,7 @@
         <div class="logo">LLM</div>
         <div>
           <h1>LLM API Playground</h1>
-          <p class="subtitle">Teste visual do proxy <code>/v1/chat/completions</code></p>
+          <p class="subtitle">Teste visual do proxy de chat e tradução</p>
         </div>
       </div>
 
@@ -660,13 +847,17 @@
       </div>
     </header>
 
-    <main id="chat" class="chat" aria-live="polite">
-      <div class="chat-inner" id="chatInner"></div>
-    </main>
+    <nav class="tabs" aria-label="Modos do playground">
+      <button class="tab active" data-panel="chat-panel" type="button">Chat</button>
+      <button class="tab" data-panel="translate-panel" type="button">Tradução</button>
+    </nav>
 
-    <div id="status" class="status"></div>
+    <section class="panel" id="chat-panel">
+      <main id="chat" class="chat" aria-live="polite">
+        <div class="chat-inner" id="chatInner"></div>
+      </main>
 
-    <footer class="composer">
+      <footer class="composer">
       <div class="composer-box">
         <div class="attachment-chips" id="attachmentChips" hidden></div>
 
@@ -744,7 +935,62 @@
           </div>
         </div>
       </div>
-    </footer>
+      </footer>
+    </section>
+
+    <section class="panel" id="translate-panel" hidden>
+      <main class="translate">
+        <div class="translate-inner">
+          <label for="translateInput">Texto original</label>
+          <textarea
+            id="translateInput"
+            placeholder="Cole aqui o texto a ser traduzido (textos longos são quebrados automaticamente)..."
+            rows="8"
+            spellcheck="false"
+          ></textarea>
+
+          <div class="translate-options">
+            <input
+              type="text"
+              id="translateFrom"
+              placeholder="De (ex.: pt — vazio = auto)"
+              spellcheck="false"
+              autocomplete="off"
+            >
+            <input
+              type="text"
+              id="translateTo"
+              placeholder="Para (ex.: en) *"
+              spellcheck="false"
+              autocomplete="off"
+            >
+            <label class="toggle">
+              <input type="checkbox" id="translateThinking">
+              Pensamento
+            </label>
+          </div>
+
+          <div class="translate-actions">
+            <button id="translateSend" class="primary-btn" type="button">Traduzir</button>
+          </div>
+
+          <div class="translate-result-wrap">
+            <div class="translate-result-header">
+              <span>Tradução</span>
+              <button id="translateCopy" class="ghost-btn" type="button" disabled>Copiar</button>
+            </div>
+            <textarea
+              id="translateResult"
+              readonly
+              placeholder="O resultado da tradução aparece aqui..."
+              spellcheck="false"
+            ></textarea>
+          </div>
+        </div>
+      </main>
+    </section>
+
+    <div id="status" class="status"></div>
   </div>
 
   <!-- Modal de settings -->
@@ -1872,6 +2118,353 @@
         input.style.height = "auto";
         input.style.height = `${Math.min(input.scrollHeight, 200)}px`;
       }, 0);
+    });
+
+    /* ---------- Tabs ---------- */
+
+    const tabs = document.querySelectorAll(".tab");
+    const chatPanel = document.getElementById("chat-panel");
+    const translatePanel = document.getElementById("translate-panel");
+
+    function switchTab(name) {
+      for (const tab of tabs) {
+        tab.classList.toggle("active", tab.dataset.panel === name);
+      }
+
+      chatPanel.hidden = name !== "chat-panel";
+      translatePanel.hidden = name !== "translate-panel";
+
+      clearChatButton.style.visibility =
+        name === "chat-panel" ? "visible" : "hidden";
+    }
+
+    for (const tab of tabs) {
+      tab.addEventListener("click", () => switchTab(tab.dataset.panel));
+    }
+
+    /* ---------- Tradução ---------- */
+
+    const translateInput = document.getElementById("translateInput");
+    const translateFrom = document.getElementById("translateFrom");
+    const translateTo = document.getElementById("translateTo");
+    const translateThinking = document.getElementById("translateThinking");
+    const translateSend = document.getElementById("translateSend");
+    const translateResult = document.getElementById("translateResult");
+    const translateCopy = document.getElementById("translateCopy");
+
+    function translateUrlFromChat(url) {
+      try {
+        const parsed = new URL(url);
+        const segments = parsed.pathname.split("/").filter(Boolean);
+
+        if (segments[segments.length - 1] !== "translate") {
+          if (segments[segments.length - 1] === "completions") {
+            segments.pop();
+          }
+
+          if (segments[segments.length - 1] === "chat") {
+            segments.pop();
+          }
+
+          segments.push("translate");
+        }
+
+        parsed.pathname = "/" + segments.join("/");
+        parsed.search = "";
+        parsed.hash = "";
+
+        return parsed.toString();
+      } catch {
+        return url;
+      }
+    }
+
+    function parseSseBlock(block) {
+      const event = block.match(/^event:\s*(.+)$/m)?.[1]?.trim();
+      const dataLine = block.match(/^data:\s*(.+)$/m)?.[1]?.trim();
+      if (!dataLine) return null;
+
+      let data;
+      try {
+        data = JSON.parse(dataLine);
+      } catch {
+        return null;
+      }
+
+      return { event: event || "message", data };
+    }
+
+    function scrollTranslateResult() {
+      translateResult.scrollTop = translateResult.scrollHeight;
+    }
+
+    async function sendTranslate() {
+      const text = translateInput.value.trim();
+      const to = translateTo.value.trim();
+      const from = translateFrom.value.trim();
+
+      if (!text) {
+        setStatus("Digite o texto a ser traduzido.", true);
+        return;
+      }
+
+      if (!to) {
+        setStatus('Informe o idioma de destino (campo "Para").', true);
+        return;
+      }
+
+      translateSend.disabled = true;
+      translateResult.value = "";
+      translateCopy.disabled = true;
+
+      const endpoint = translateUrlFromChat(normalizeUrl(API_URL) || API_URL);
+
+      const requestBody = JSON.stringify({
+        text,
+        to,
+        from: from || undefined,
+        thinking: translateThinking.checked,
+        stream: true
+      });
+
+      setStatus("Enviando para tradução...");
+
+      try {
+        const response = await fetch(endpoint, {
+          method: "POST",
+
+          headers: {
+            "Authorization": `Bearer ${API_TOKEN}`,
+            "Content-Type": "application/json"
+          },
+
+          body: requestBody
+        });
+
+        if (!response.ok) {
+          const message = await parseErrorResponse(response);
+
+          recordError({
+            message,
+            status: response.status,
+            endpoint,
+            requestBody,
+            details: `HTTP ${response.status} ${response.statusText}`
+          });
+
+          translateResult.value = message;
+          setStatus(
+            `Erro HTTP ${response.status} — veja o histórico de erros.`,
+            true
+          );
+
+          return;
+        }
+
+        if (!response.body) {
+          recordError({
+            message: "A API não retornou um stream de tradução.",
+            endpoint,
+            requestBody,
+            details: `HTTP ${response.status} sem body`
+          });
+
+          setStatus("A API não retornou um stream.", true);
+
+          return;
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let fullText = "";
+        let totalChunks = 0;
+        let chunksDone = 0;
+        let receivedDone = false;
+        let errorEntry = null;
+
+        setStatus("Conectando ao servidor...");
+
+        while (true) {
+          let done, value;
+          try {
+            ({ done, value } = await reader.read());
+          } catch (readError) {
+            recordError({
+              message: `Stream interrompido: ${readError.message || "erro de leitura"}`,
+              endpoint,
+              requestBody,
+              details: readError.stack || String(readError)
+            });
+
+            setStatus("Stream interrompido — veja o histórico de erros.", true);
+
+            return;
+          }
+
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const blocks = buffer.split(/\r?\n\r?\n/);
+          buffer = blocks.pop() || "";
+
+          for (const block of blocks) {
+            const event = parseSseBlock(block);
+            if (!event) continue;
+
+            switch (event.event) {
+              case "queued":
+                setStatus(
+                  `Na fila de tradução (posição ${event.data.position}) — aguardando...`
+                );
+                break;
+
+              case "start":
+                totalChunks = event.data.chunks;
+                setStatus(
+                  totalChunks > 1
+                    ? `Traduzindo... 0/${totalChunks} pedaços (0%)`
+                    : "Traduzindo..."
+                );
+                break;
+
+              case "chunk_start":
+                setStatus(
+                  totalChunks > 1
+                    ? `Traduzindo pedaço ${event.data.index + 1}/${totalChunks}...`
+                    : "Traduzindo..."
+                );
+                break;
+
+              case "chunk_retry":
+                setStatus(
+                  `Pedaço ${event.data.index + 1} falhou — tentando novamente (tentativa ${event.data.attempt})...`
+                );
+                break;
+
+              case "delta":
+                fullText += event.data.text;
+                translateResult.value = fullText;
+                scrollTranslateResult();
+                break;
+
+              case "chunk_end":
+                chunksDone = event.data.index + 1;
+                if (totalChunks > 1) {
+                  const percent = Math.round((chunksDone / totalChunks) * 100);
+                  setStatus(
+                    `Traduzindo... ${chunksDone}/${totalChunks} pedaços (${percent}%)`
+                  );
+                }
+                break;
+
+              case "done":
+                receivedDone = true;
+                fullText = event.data.text;
+                translateResult.value = fullText;
+                translateCopy.disabled = false;
+                setStatus(
+                  event.data.from
+                    ? `Pronto. Idioma de origem detectado: ${event.data.from}.`
+                    : "Pronto."
+                );
+                scrollTranslateResult();
+                break;
+
+              case "error":
+                errorEntry = event.data;
+                break;
+            }
+          }
+        }
+
+        if (errorEntry) {
+          const message = errorEntry.message || "Erro ao traduzir.";
+
+          recordError({
+            message,
+            status: errorEntry.status,
+            endpoint,
+            requestBody,
+            details: errorEntry.partial
+              ? "Falha no meio da tradução; o texto parcial foi mantido no resultado."
+              : undefined
+          });
+
+          if (fullText) {
+            translateResult.value = fullText;
+            translateCopy.disabled = false;
+          }
+
+          setStatus(
+            `Falha na tradução (HTTP ${errorEntry.status ?? "?"}) — veja o histórico de erros.`,
+            true
+          );
+
+          return;
+        }
+
+        if (!receivedDone) {
+          recordError({
+            message: "O stream de tradução terminou sem o evento de conclusão.",
+            endpoint,
+            requestBody,
+            details: fullText ? `Texto parcial: ${fullText}` : undefined
+          });
+
+          if (fullText) {
+            translateResult.value = fullText;
+            translateCopy.disabled = false;
+          }
+
+          setStatus(
+            "Stream encerrado inesperadamente — veja o histórico de erros.",
+            true
+          );
+
+          return;
+        }
+
+      } catch (error) {
+        const message =
+          "Falha na requisição: " + (error.message || "sem detalhes");
+
+        recordError({
+          message,
+          endpoint,
+          requestBody,
+          details: error.stack || String(error)
+        });
+
+        translateResult.value = message;
+        setStatus(
+          "Falha na requisição — verifique se a API está no ar e se o token está correto.",
+          true
+        );
+
+      } finally {
+        translateSend.disabled = false;
+      }
+    }
+
+    translateSend.addEventListener("click", sendTranslate);
+
+    translateCopy.addEventListener("click", async () => {
+      const text = translateResult.value;
+
+      if (!text) {
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(text);
+        setStatus("Tradução copiada.");
+      } catch (error) {
+        setStatus(
+          "Falha ao copiar: " + (error.message || "sem detalhes"),
+          true
+        );
+      }
     });
   </script>
 

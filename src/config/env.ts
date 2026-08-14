@@ -18,6 +18,8 @@ export const env = {
   maxPageChars: Number(process.env.MAX_PAGE_CHARS ?? 8000),
 
   translateChunkChars: Number(process.env.TRANSLATE_CHUNK_CHARS ?? 4000),
+
+  translateChunkRetries: Number(process.env.TRANSLATE_CHUNK_RETRIES ?? 3),
 }
 
 if (!env.apiToken) {

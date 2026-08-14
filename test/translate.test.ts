@@ -156,15 +156,17 @@ describe('POST /v1/translate', () => {
     await app.close()
   })
 
-  it('propaga erros do llama-server (ex.: 500)', async () => {
-    buildFetchMock(
-      new Response(
-        JSON.stringify({
-          error: { message: 'internal error' },
-        }),
-        { status: 500 }
+  it('propaga erros do llama-server (ex.: 500) após esgotar as tentativas', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(
+        async () =>
+          new Response(
+            JSON.stringify({ error: { message: 'internal error' } }),
+            { status: 500 }
+          )
       )
-    )
+    vi.stubGlobal('fetch', fetchMock)
 
     const app = buildApp({ logger: false })
 
@@ -179,6 +181,245 @@ describe('POST /v1/translate', () => {
     expect(response.json()).toEqual({
       error: { message: 'internal error' },
     })
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+
+    await app.close()
+  })
+
+  it('tenta novamente um chunk que falha e então obtém sucesso', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: { message: 'boom' } }), {
+          status: 500,
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            choices: [{ message: { role: 'assistant', content: 'OK.' } }],
+          }),
+          { status: 200 }
+        )
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const app = buildApp({ logger: false })
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/translate',
+      headers: { authorization: 'Bearer test-token' },
+      payload: { text: 'Bom dia', to: 'en', from: 'pt' },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({ text: 'OK.', from: 'pt', to: 'en' })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+
+    await app.close()
+  })
+
+  it('não tenta novamente em erro 4xx do modelo', async () => {
+    const fetchMock = vi.fn().mockImplementation(
+      async () =>
+        new Response(JSON.stringify({ error: { message: 'bad request' } }), {
+          status: 400,
+        })
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const app = buildApp({ logger: false })
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/translate',
+      headers: { authorization: 'Bearer test-token' },
+      payload: { text: 'Bom dia', to: 'en' },
+    })
+
+    expect(response.statusCode).toBe(400)
+    expect(response.json()).toEqual({ error: { message: 'bad request' } })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    await app.close()
+  })
+
+  it('inclui texto parcial quando um chunk falha depois de outros concluídos', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            choices: [{ message: { role: 'assistant', content: 'Primeira ' } }],
+          }),
+          { status: 200 }
+        )
+      )
+      .mockImplementation(
+        async () =>
+          new Response(JSON.stringify({ error: { message: 'boom' } }), {
+            status: 500,
+          })
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const app = buildApp({ logger: false })
+
+    const longText =
+      'Esta é uma frase longa que deve ser quebrada em pedaços. '.repeat(20)
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/translate',
+      headers: { authorization: 'Bearer test-token' },
+      payload: { text: longText, to: 'en', from: 'pt' },
+    })
+
+    expect(response.statusCode).toBe(500)
+    expect(response.json()).toEqual({
+      error: { message: 'boom' },
+      partial: 'Primeira',
+    })
+
+    await app.close()
+  })
+
+  it('em streaming (stream: true) devolve eventos SSE com progresso e resultado', async () => {
+    const encoder = new TextEncoder()
+    const events = [
+      'data: {"choices":[{"delta":{"content":"Bom "}}]}\n\n',
+      'data: {"choices":[{"delta":{"content":"dia."}}]}\n\n',
+      'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n',
+      'data: [DONE]\n\n',
+    ]
+
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            for (const event of events)
+              controller.enqueue(encoder.encode(event))
+            controller.close()
+          },
+        }),
+        { status: 200, headers: { 'content-type': 'text/event-stream' } }
+      )
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const app = buildApp({ logger: false })
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/translate',
+      headers: {
+        authorization: 'Bearer test-token',
+        origin: 'http://localhost:5173',
+      },
+      payload: { text: 'Bom dia.', to: 'en', from: 'pt', stream: true },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.headers['access-control-allow-origin']).toBe(
+      'http://localhost:5173'
+    )
+    expect(response.headers['content-type']).toContain('text/event-stream')
+    expect(response.body).toContain('event: queued')
+    expect(response.body).toContain('event: start')
+    expect(response.body).toContain('event: chunk_start')
+    expect(response.body).toContain('event: delta')
+    expect(response.body).toContain('"text":"Bom "')
+    expect(response.body).toContain('event: chunk_end')
+    expect(response.body).toContain('event: done')
+    expect(response.body).toContain('"text":"Bom dia."')
+
+    const [, init] = fetchMock.mock.calls[0]
+    const sent = JSON.parse(init.body as string)
+    expect(sent.stream).toBe(true)
+
+    await app.close()
+  })
+
+  it('em streaming quebra texto grande em múltiplos chunks', async () => {
+    const encoder = new TextEncoder()
+
+    function sseResponse(content: string): Response {
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(
+              encoder.encode(
+                `data: {"choices":[{"delta":{"content":"${content}"}}]}\n\n`
+              )
+            )
+            controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+            controller.close()
+          },
+        }),
+        { status: 200, headers: { 'content-type': 'text/event-stream' } }
+      )
+    }
+
+    let call = 0
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async () => sseResponse(`parte ${call++} `))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const app = buildApp({ logger: false })
+
+    const longText =
+      'Esta é uma frase longa que deve ser quebrada em pedaços. '.repeat(20)
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/translate',
+      headers: { authorization: 'Bearer test-token' },
+      payload: { text: longText, to: 'en', from: 'pt', stream: true },
+    })
+
+    const calls = fetchMock.mock.calls.length
+
+    expect(response.statusCode).toBe(200)
+    expect(calls).toBeGreaterThan(1)
+    expect(response.body).toContain('event: done')
+
+    const chunkStartCount = (response.body.match(/event: chunk_start/g) ?? [])
+      .length
+    const deltaCount = (response.body.match(/event: delta/g) ?? []).length
+    expect(chunkStartCount).toBe(calls)
+    expect(deltaCount).toBe(calls)
+
+    for (const [, init] of fetchMock.mock.calls) {
+      const sent = JSON.parse((init as RequestInit).body as string)
+      expect(sent.stream).toBe(true)
+    }
+
+    await app.close()
+  })
+
+  it('em streaming emite evento de erro quando o modelo falha', async () => {
+    const fetchMock = vi.fn().mockImplementation(
+      async () =>
+        new Response(JSON.stringify({ error: { message: 'boom' } }), {
+          status: 500,
+        })
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const app = buildApp({ logger: false })
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/translate',
+      headers: { authorization: 'Bearer test-token' },
+      payload: { text: 'Bom dia', to: 'en', stream: true },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.body).toContain('event: queued')
+    expect(response.body).toContain('event: error')
+    expect(response.body).toContain('boom')
+    expect(fetchMock).toHaveBeenCalledTimes(3)
 
     await app.close()
   })

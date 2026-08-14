@@ -135,6 +135,11 @@ MAX_PAGE_CHARS=8000
 # Textos maiores são quebrados em múltiplas requisições ao modelo e
 # reagrupados na resposta final. A quebra nunca corta uma palavra ao meio.
 TRANSLATE_CHUNK_CHARS=4000
+
+# Translate: máximo de tentativas por chunk em caso de erro de rede,
+# resposta 5xx do modelo ou resposta sem conteúdo. Erros 4xx não são
+# repetidos. Cada tentativa extra usa backoff de 250ms * tentativa.
+TRANSLATE_CHUNK_RETRIES=3
 ```
 
 > `API_TOKEN` é **obrigatório** — o app falha ao iniciar se estiver vazio.
@@ -195,6 +200,10 @@ Traduz um texto usando o modelo (LLM) carregado no `llama-server`. O proxy monta
 
 > **Chunking:** se o texto ultrapassar `TRANSLATE_CHUNK_CHARS` (padrão `4000`, ~1000 tokens — seguro para o Gemma 4 E2B), ele é quebrado em múltiplos pedaços, cada um traduzido em uma requisição separada ao modelo, e o resultado final é a **junção** de todas as traduções (a quebra respeita palavras e preserva as quebras de linha). Para o cliente é transparente: uma única chamada, um único texto de resposta.
 
+> **Retry:** se um chunk falhar por erro de rede, resposta `5xx` do modelo ou resposta sem conteúdo, ele é tentado novamente até `TRANSLATE_CHUNK_RETRIES` vezes (padrão `3`). Erros `4xx` não são repetidos (não mudariam com nova tentativa). Se a falha persistir e já houver chunks traduzidos, o erro inclui o campo `partial` com o texto parcial.
+
+> **Streaming:** passando `"stream": true`, a resposta vira um fluxo **SSE** com eventos de progresso (`queued`, `start`, `chunk_start`, `delta`, `chunk_retry`, `chunk_end`, `done`/`error`). O cliente recebe resposta imediatamente (com a posição na fila), o texto traduzido aparece **em tempo real** via `delta`, e um keepalive evita que proxies encerrem a conexão durante esperas longas na fila. Útil para clientes interativos (ex.: o playground) que precisam de feedback de progresso e não podem ficar com a requisição "muda" por muito tempo.
+
 ```bash
 curl http://localhost:3000/v1/translate \
   -H "Authorization: Bearer abc123-super-secret" \
@@ -214,8 +223,9 @@ curl http://localhost:3000/v1/translate \
 | `to` | string | **Obrigatório.** Idioma de destino (ex.: `en`, `es`, `fr`, `pt`, `ja`). |
 | `from` | string | Opcional. Idioma de origem (ex.: `pt`). Se omitido, o modelo tenta detectar. |
 | `thinking` | boolean | Opcional. Se `false` (padrão), desliga o pensamento do modelo (`enable_thinking: false` + `reasoning_effort: none`) para uma tradução direta. |
+| `stream` | boolean | Opcional. Se `true`, responde em SSE com eventos de progresso (ver abaixo). Padrão: `false`. |
 
-#### Resposta
+#### Resposta (sem `stream`)
 
 ```json
 {
@@ -225,7 +235,45 @@ curl http://localhost:3000/v1/translate \
 }
 ```
 
-> Erros do `llama-server` são repassados com o status e body originais. Sem `text` ou `to`, retorna `400` com `error.message` descritivo.
+> Erros do `llama-server` são repassados com o status e body originais (com `partial` quando já havia chunks traduzidos). Sem `text` ou `to`, retorna `400` com `error.message` descritivo.
+
+#### Resposta com `stream: true`
+
+Fluxo **SSE** (`text/event-stream`) com eventos nomeados. Exemplo simplificado:
+
+```
+event: queued
+data: {"position":3}
+
+event: start
+data: {"chunks":2}
+
+event: chunk_start
+data: {"index":0,"chunks":2}
+
+event: delta
+data: {"text":"Bom "}
+
+event: delta
+data: {"text":"dia."}
+
+event: chunk_end
+data: {"index":0,"chunks":2}
+
+event: done
+data: {"text":"Bom dia.","from":"pt","to":"en"}
+```
+
+| Evento | Data | Significado |
+|---|---|---|
+| `queued` | `{ position }` | Posição na fila (resposta imediata). |
+| `start` | `{ chunks }` | Total de chunks a traduzir. |
+| `chunk_start` | `{ index, chunks }` | Início do chunk `index`. |
+| `delta` | `{ text }` | Fragmento traduzido em tempo real. |
+| `chunk_retry` | `{ index, attempt }` | Chunk falhou e será tentado de novo. |
+| `chunk_end` | `{ index, chunks }` | Chunk concluído. |
+| `done` | `{ text, from, to }` | Tradução completa. |
+| `error` | `{ status, message, partial }` | Falha após esgotar as tentativas; `partial` tem o texto já traduzido. |
 
 ### `POST /v1/chat/completions`
 
