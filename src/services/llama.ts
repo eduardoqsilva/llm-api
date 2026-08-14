@@ -5,6 +5,7 @@ type ChatBody = {
   chat_template_kwargs?: Record<string, unknown>
   reasoning_effort?: string
   messages?: unknown[]
+  [key: string]: unknown
 }
 
 export async function chatCompletion(

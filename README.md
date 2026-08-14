@@ -182,6 +182,42 @@ curl http://localhost:3000/v1/tools \
   -H "Authorization: Bearer abc123-super-secret"
 ```
 
+### `POST /v1/translate`
+
+Traduz um texto usando o modelo (LLM) carregado no `llama-server`. O proxy monta um prompt de sistema dedicado, chama o modelo e devolve apenas o texto traduzido. Requer autenticação.
+
+```bash
+curl http://localhost:3000/v1/translate \
+  -H "Authorization: Bearer abc123-super-secret" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Bom dia, tudo bem?",
+    "to": "en",
+    "from": "pt"
+  }'
+```
+
+#### Parâmetros
+
+| Parâmetro | Tipo | Descrição |
+|---|---|---|
+| `text` | string | **Obrigatório.** Texto a ser traduzido. |
+| `to` | string | **Obrigatório.** Idioma de destino (ex.: `en`, `es`, `fr`, `pt`, `ja`). |
+| `from` | string | Opcional. Idioma de origem (ex.: `pt`). Se omitido, o modelo tenta detectar. |
+| `thinking` | boolean | Opcional. Se `false` (padrão), desliga o pensamento do modelo (`enable_thinking: false` + `reasoning_effort: none`) para uma tradução direta. |
+
+#### Resposta
+
+```json
+{
+  "text": "Good morning, how are you?",
+  "from": "pt",
+  "to": "en"
+}
+```
+
+> Erros do `llama-server` são repassados com o status e body originais. Sem `text` ou `to`, retorna `400` com `error.message` descritivo.
+
 ### `POST /v1/chat/completions`
 
 Endpoint compatível com OpenAI. **Requer** o header:
@@ -437,6 +473,8 @@ if (stateless === true && Array.isArray(body.messages)) {
 
 O proxy implementa o **tool-calling loop**: o `llama-server` emite `tool_calls`, o proxy executa a tool e devolve o resultado ao modelo, repetindo até a resposta final. Funciona com e sem streaming (SSE).
 
+> Para um guia completo e aprofundado (conceito, fluxo no código, streaming, schemas e as 5 tools em detalhe), veja o [`TOOLS.md`](./TOOLS.md).
+
 ### Habilitando
 
 - `enable_tools: true` — injeta automaticamente os schemas das tools embutidas;
@@ -506,8 +544,10 @@ llm-api/
 │   ├── plugins/auth.ts      # validação do Bearer token
 │   ├── routes/chat.ts       # POST /v1/chat/completions (stream/multimodal/tools)
 │   ├── routes/tools.ts      # GET /v1/tools (schemas das tools embutidas)
+│   ├── routes/translate.ts  # POST /v1/translate (tradução via modelo)
 │   ├── services/llama.ts    # proxy p/ llama.cpp + tradução do thinking
 │   ├── services/chatTools.ts# tool-calling loop (stream e não-stream)
+│   └── services/translate.ts# prompt de tradução + chamada ao modelo
 │   └── tools/               # implementação das tools (web_search, fetch_page, ...)
 ├── test/                    # testes unitários e de integração (Vitest)
 ├── biome.json               # formatação e lint (Biome)
