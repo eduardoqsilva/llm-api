@@ -5,6 +5,13 @@ import { authenticate } from './plugins/auth.js'
 import chatRoute from './routes/chat.js'
 import toolsRoute from './routes/tools.js'
 import translateRoute from './routes/translate.js'
+import { createQueue, type Queue } from './services/queue.js'
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    translateQueue: Queue
+  }
+}
 
 export function buildApp(options: { logger?: boolean } = {}) {
   const app = Fastify({
@@ -17,6 +24,7 @@ export function buildApp(options: { logger?: boolean } = {}) {
   })
 
   app.register(async (app) => {
+    app.decorate('translateQueue', createQueue())
     app.addHook('onRequest', authenticate)
 
     app.register(chatRoute)

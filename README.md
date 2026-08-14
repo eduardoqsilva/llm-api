@@ -130,6 +130,11 @@ SEARCH_RESULTS=5
 
 # Tools: máximo de caracteres retornados pelo fetch_page
 MAX_PAGE_CHARS=8000
+
+# Translate: tamanho alvo (em caracteres) de cada chunk de texto.
+# Textos maiores são quebrados em múltiplas requisições ao modelo e
+# reagrupados na resposta final. A quebra nunca corta uma palavra ao meio.
+TRANSLATE_CHUNK_CHARS=4000
 ```
 
 > `API_TOKEN` é **obrigatório** — o app falha ao iniciar se estiver vazio.
@@ -185,6 +190,10 @@ curl http://localhost:3000/v1/tools \
 ### `POST /v1/translate`
 
 Traduz um texto usando o modelo (LLM) carregado no `llama-server`. O proxy monta um prompt de sistema dedicado, chama o modelo e devolve apenas o texto traduzido. Requer autenticação.
+
+> **Fila:** as requisições de tradução são enfileiradas em memória e processadas **uma por vez** (FIFO, concorrência 1) para não sobrecarregar o `llama-server`. Se o servidor estiver ocupado, a requisição fica com o HTTP aberto aguardando a vez — a fila é ilimitada, então nunca há falha por lotação. Isso torna o endpoint seguro para o consumo assíncrono em massa (ex.: traduzir páginas de um blog a partir de outro servidor).
+
+> **Chunking:** se o texto ultrapassar `TRANSLATE_CHUNK_CHARS` (padrão `4000`, ~1000 tokens — seguro para o Gemma 4 E2B), ele é quebrado em múltiplos pedaços, cada um traduzido em uma requisição separada ao modelo, e o resultado final é a **junção** de todas as traduções (a quebra respeita palavras e preserva as quebras de linha). Para o cliente é transparente: uma única chamada, um único texto de resposta.
 
 ```bash
 curl http://localhost:3000/v1/translate \
@@ -547,7 +556,9 @@ llm-api/
 │   ├── routes/translate.ts  # POST /v1/translate (tradução via modelo)
 │   ├── services/llama.ts    # proxy p/ llama.cpp + tradução do thinking
 │   ├── services/chatTools.ts# tool-calling loop (stream e não-stream)
-│   └── services/translate.ts# prompt de tradução + chamada ao modelo
+│   ├── services/translate.ts# prompt de tradução + chunking + junção
+│   ├── services/chunkText.ts# divisão do texto em chunks (sem cortar palavras)
+│   ├── services/queue.ts    # fila FIFO em memória (1 job por vez)
 │   └── tools/               # implementação das tools (web_search, fetch_page, ...)
 ├── test/                    # testes unitários e de integração (Vitest)
 ├── biome.json               # formatação e lint (Biome)

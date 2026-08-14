@@ -33,35 +33,17 @@ const translateRoute: FastifyPluginAsync = async (fastify) => {
       })
     }
 
-    const response = await translate({
-      text,
-      to,
-      from: typeof body.from === 'string' ? body.from : undefined,
-      thinking: typeof body.thinking === 'boolean' ? body.thinking : undefined,
-    })
-
-    const data = await response.json()
-
-    if (!response.ok) {
-      return reply.code(response.status).send(data)
-    }
-
-    const content = data?.choices?.[0]?.message?.content
-
-    if (typeof content !== 'string') {
-      return reply.code(502).send({
-        error: {
-          message: 'Unexpected response from the model.',
-          type: 'server_error',
-        },
+    const result = await fastify.translateQueue.enqueue(() =>
+      translate({
+        text,
+        to,
+        from: typeof body.from === 'string' ? body.from : undefined,
+        thinking:
+          typeof body.thinking === 'boolean' ? body.thinking : undefined,
       })
-    }
+    )
 
-    return reply.send({
-      text: content.trim(),
-      from: body.from,
-      to,
-    })
+    return reply.code(result.status).send(result.body)
   })
 }
 

@@ -182,4 +182,124 @@ describe('POST /v1/translate', () => {
 
     await app.close()
   })
+
+  it('quebra texto grande em múltiplas chamadas e junta a resposta', async () => {
+    let call = 0
+
+    const fetchMock = vi.fn().mockImplementation(
+      async () =>
+        new Response(
+          JSON.stringify({
+            choices: [
+              {
+                message: {
+                  role: 'assistant',
+                  content: `parte ${call++} `,
+                },
+              },
+            ],
+          }),
+          { status: 200 }
+        )
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const app = buildApp({ logger: false })
+
+    const longText =
+      'Esta é uma frase longa que deve ser quebrada em pedaços. '.repeat(20)
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/translate',
+      headers: { authorization: 'Bearer test-token' },
+      payload: { text: longText, to: 'en', from: 'pt' },
+    })
+
+    const calls = fetchMock.mock.calls.length
+
+    expect(calls).toBeGreaterThan(1)
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({
+      text: Array.from({ length: calls }, (_, i) => `parte ${i} `)
+        .join('')
+        .trim(),
+      from: 'pt',
+      to: 'en',
+    })
+
+    const sentTexts = fetchMock.mock.calls.map(
+      ([, init]: [Request, RequestInit]) =>
+        JSON.parse(init.body as string).messages[1].content as string
+    )
+    expect(sentTexts.join('')).toBe(longText.trim())
+    for (const sent of sentTexts) {
+      expect(sent.length).toBeLessThanOrEqual(50)
+    }
+
+    await app.close()
+  })
+
+  it('processa uma requisição por vez (fila)', async () => {
+    let resolveFirst!: (value: Response) => void
+    const gate = new Promise<Response>((resolve) => {
+      resolveFirst = resolve
+    })
+
+    const fetchMock = vi
+      .fn()
+      .mockReturnValueOnce(gate)
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            choices: [{ message: { role: 'assistant', content: 'Segundo.' } }],
+          }),
+          { status: 200 }
+        )
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const app = buildApp({ logger: false })
+
+    const first = app.inject({
+      method: 'POST',
+      url: '/v1/translate',
+      headers: { authorization: 'Bearer test-token' },
+      payload: { text: 'Primeiro.', to: 'en' },
+    })
+    const second = app.inject({
+      method: 'POST',
+      url: '/v1/translate',
+      headers: { authorization: 'Bearer test-token' },
+      payload: { text: 'Segundo.', to: 'en' },
+    })
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    resolveFirst(
+      new Response(
+        JSON.stringify({
+          choices: [{ message: { role: 'assistant', content: 'Primeiro.' } }],
+        }),
+        { status: 200 }
+      )
+    )
+
+    const firstResponse = await first
+    const secondResponse = await second
+
+    expect(firstResponse.statusCode).toBe(200)
+    expect(firstResponse.json()).toEqual({
+      text: 'Primeiro.',
+      to: 'en',
+    })
+    expect(secondResponse.statusCode).toBe(200)
+    expect(secondResponse.json()).toEqual({
+      text: 'Segundo.',
+      to: 'en',
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+
+    await app.close()
+  })
 })

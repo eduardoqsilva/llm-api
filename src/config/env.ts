@@ -16,6 +16,8 @@ export const env = {
   searchResults: Number(process.env.SEARCH_RESULTS ?? 5),
 
   maxPageChars: Number(process.env.MAX_PAGE_CHARS ?? 8000),
+
+  translateChunkChars: Number(process.env.TRANSLATE_CHUNK_CHARS ?? 4000),
 }
 
 if (!env.apiToken) {

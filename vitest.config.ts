@@ -6,6 +6,7 @@ export default defineConfig({
     env: {
       API_TOKEN: 'test-token',
       LLAMA_URL: 'http://llama:8080',
+      TRANSLATE_CHUNK_CHARS: '50',
     },
   },
 })
