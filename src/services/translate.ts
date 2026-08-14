@@ -17,7 +17,7 @@ function buildMessages({ text, to, from }: TranslateInput) {
     'vocabulary, and cultural sensitivities.',
     `Produce only the ${target} translation, without any additional`,
     'explanations or commentary.',
-    `Please translate the following ${source} text into ${target}.`,
+    `Please translate the following ${source} text into ${target}:`,
   ].join(' ')
 
   return [
