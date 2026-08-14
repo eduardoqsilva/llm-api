@@ -118,6 +118,18 @@ LLAMA_URL=http://llama:8080
 
 # Limite máximo do body JSON em bytes (aumente para imagens base64)
 BODY_LIMIT=26214400
+
+# Tools: máximo de rodadas de chamadas de ferramenta por requisição
+MAX_TOOL_ROUNDS=8
+
+# Tools: timeout (ms) para chamadas HTTP de web_search e fetch_page
+TOOL_TIMEOUT_MS=15000
+
+# Tools: número de resultados padrão do web_search (1-10)
+SEARCH_RESULTS=5
+
+# Tools: máximo de caracteres retornados pelo fetch_page
+MAX_PAGE_CHARS=8000
 ```
 
 > `API_TOKEN` é **obrigatório** — o app falha ao iniciar se estiver vazio.
@@ -159,6 +171,15 @@ Resposta:
 
 ```json
 { "status": "ok" }
+```
+
+### `GET /v1/tools`
+
+Lista as tools embutidas (schemas em formato OpenAI). Requer autenticação.
+
+```bash
+curl http://localhost:3000/v1/tools \
+  -H "Authorization: Bearer abc123-super-secret"
 ```
 
 ### `POST /v1/chat/completions`
@@ -367,6 +388,7 @@ Abra o `playground.html` no navegador para testar todos os recursos sem escrever
 - Chat com streaming;
 - Checkbox "Mostrar pensamento" (liga/desliga o `thinking`);
 - Checkbox "Sem contexto (stateless)" (cada mensagem tratada como a primeira);
+- Checkbox "Tools" (ativa as tools embutidas com `enable_tools: true`);
 - Upload de imagem com preview (enviada como data URI base64);
 - Upload de áudio e vídeo com preview (enviados como `input_audio` e `input_video`);
 - Gravação de áudio pelo microfone (botão com ícone de microfone, máx. 30s), enviada como `input_audio`;
@@ -409,6 +431,66 @@ if (stateless === true && Array.isArray(body.messages)) {
 - `stateless: true` → somente a mensagem atual é enviada ao modelo.
 - `stateless` omitido ou `false` → o histórico completo é repassado (padrão).
 
+> Quando `tools` estão ativas, `stateless` é ignorado — o tool-loop precisa do histórico para anexar os resultados das chamadas.
+
+## Tools (function calling)
+
+O proxy implementa o **tool-calling loop**: o `llama-server` emite `tool_calls`, o proxy executa a tool e devolve o resultado ao modelo, repetindo até a resposta final. Funciona com e sem streaming (SSE).
+
+### Habilitando
+
+- `enable_tools: true` — injeta automaticamente os schemas das tools embutidas;
+- `tools: [...]` — lista de tools em formato OpenAI (o proxy executa apenas as que implementa);
+- `max_tool_rounds: N` — limite de rodadas de ferramentas por requisição (padrão 8).
+
+O modelo deve ter suporte a function calling (chat template com tools). Caso contrário, ele simplesmente nunca emite `tool_calls` e o fluxo segue normal.
+
+### Tools embutidas
+
+| Tool | Descrição |
+|---|---|
+| `web_search` | Busca na web (DuckDuckGo, sem chave) e retorna títulos, URLs e resumos. |
+| `fetch_page` | Abre uma URL e retorna o texto legível extraído (truncado). |
+| `calculator` | Calculadora avançada: `+ - * / % ^`, parênteses, funções (`sin cos tan ln log sqrt cbrt abs round floor ceil min max`, ...) e constantes (`pi`, `e`). |
+| `get_current_time` | Data/hora atual (padrão Brasília/America_Sao_Paulo; aceita fuso IANA via `timezone`), ISO e timestamp. |
+| `random_uuid` | Gera um UUID v4. |
+
+Consulte os schemas completos (para usar com `tools` explícitas) em:
+
+```bash
+curl http://localhost:3000/v1/tools \
+  -H "Authorization: Bearer abc123-super-secret"
+```
+
+### Exemplo (sem stream)
+
+```bash
+curl http://localhost:3000/v1/chat/completions \
+  -H "Authorization: Bearer abc123-super-secret" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "model.gguf",
+    "messages": [
+      { "role": "user", "content": "Calcule 123 * 456 e responda com o resultado." }
+    ],
+    "enable_tools": true,
+    "stream": false
+  }'
+```
+
+### Exemplo (com streaming)
+
+Mesmo body com `"stream": true`. O proxy repassa as chamadas de tool como eventos SSE (`delta.tool_calls`) e continua o stream com a resposta final — o cliente vê apenas um stream contínuo terminando em `data: [DONE]`.
+
+### Variáveis de ambiente
+
+| Variável | Padrão | Descrição |
+|---|---|---|
+| `MAX_TOOL_ROUNDS` | `8` | Máximo de rodadas de ferramentas por requisição. |
+| `TOOL_TIMEOUT_MS` | `15000` | Timeout (ms) das chamadas HTTP de `web_search` e `fetch_page`. |
+| `SEARCH_RESULTS` | `5` | Número padrão de resultados do `web_search`. |
+| `MAX_PAGE_CHARS` | `8000` | Máximo de caracteres retornados pelo `fetch_page`. |
+
 ## Estrutura do projeto
 
 ```
@@ -422,8 +504,11 @@ llm-api/
 │   ├── app.ts               # montagem do app (CORS, auth, rotas, bodyLimit)
 │   ├── config/env.ts        # leitura das variáveis de ambiente
 │   ├── plugins/auth.ts      # validação do Bearer token
-│   ├── routes/chat.ts       # POST /v1/chat/completions (stream/multimodal)
-│   └── services/llama.ts    # proxy p/ llama.cpp + tradução do thinking
+│   ├── routes/chat.ts       # POST /v1/chat/completions (stream/multimodal/tools)
+│   ├── routes/tools.ts      # GET /v1/tools (schemas das tools embutidas)
+│   ├── services/llama.ts    # proxy p/ llama.cpp + tradução do thinking
+│   ├── services/chatTools.ts# tool-calling loop (stream e não-stream)
+│   └── tools/               # implementação das tools (web_search, fetch_page, ...)
 ├── test/                    # testes unitários e de integração (Vitest)
 ├── biome.json               # formatação e lint (Biome)
 ├── lefthook.yml             # hooks de git (formatação, typecheck, testes)

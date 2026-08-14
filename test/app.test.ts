@@ -30,6 +30,41 @@ describe('buildApp', () => {
     })
   })
 
+  describe('GET /v1/tools', () => {
+    it('rejeita sem autenticação', async () => {
+      const app = buildApp({ logger: false })
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/v1/tools',
+      })
+
+      expect(response.statusCode).toBe(401)
+
+      await app.close()
+    })
+
+    it('lista as tools embutidas', async () => {
+      const app = buildApp({ logger: false })
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/v1/tools',
+        headers: { authorization: 'Bearer test-token' },
+      })
+
+      expect(response.statusCode).toBe(200)
+      const names = response
+        .json()
+        .data.map((tool: { function: { name: string } }) => tool.function.name)
+      expect(names).toContain('web_search')
+      expect(names).toContain('fetch_page')
+      expect(names).toContain('calculator')
+
+      await app.close()
+    })
+  })
+
   describe('POST /v1/chat/completions', () => {
     const payload = {
       model: 'model.gguf',
@@ -177,6 +212,143 @@ describe('buildApp', () => {
         'data: {"choices":[{"delta":{"content":"oi"}}]}'
       )
       expect(response.body).toContain('data: [DONE]')
+
+      await app.close()
+    })
+
+    it('executa tools em streaming e continua o SSE', async () => {
+      const encoder = new TextEncoder()
+
+      function sseResponse(...events: string[]): Response {
+        const stream = new ReadableStream({
+          start(controller) {
+            for (const event of events) {
+              controller.enqueue(encoder.encode(event))
+            }
+            controller.close()
+          },
+        })
+        return new Response(stream, {
+          status: 200,
+          headers: { 'content-type': 'text/event-stream' },
+        })
+      }
+
+      const firstRound = [
+        'data: {"choices":[{"delta":{"role":"assistant","tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"calculator","arguments":""}}]}}]}\n\n',
+        'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\\"expression\\":\\"2+2\\"}"}}]}}]}\n\n',
+        'data: {"choices":[{"delta":{},"finish_reason":"tool_calls"}]}\n\n',
+      ]
+      const secondRound = [
+        'data: {"choices":[{"delta":{"content":"O resultado é 4."}}]}\n\n',
+        'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n',
+        'data: [DONE]\n\n',
+      ]
+
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(sseResponse(...firstRound))
+        .mockResolvedValueOnce(sseResponse(...secondRound))
+      vi.stubGlobal('fetch', fetchMock)
+
+      const app = buildApp({ logger: false })
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/v1/chat/completions',
+        headers: { authorization: 'Bearer test-token' },
+        payload: {
+          ...payload,
+          stream: true,
+          enable_tools: true,
+        },
+      })
+
+      expect(response.statusCode).toBe(200)
+      expect(response.body).toContain('calculator')
+      expect(response.body).toContain('O resultado é 4.')
+      expect(response.body).toContain('data: [DONE]')
+
+      const [, secondInit] = fetchMock.mock.calls[1]
+      const secondBody = JSON.parse(secondInit.body)
+      expect(secondBody).not.toHaveProperty('enable_tools')
+      expect(secondBody.messages).toContainEqual({
+        role: 'tool',
+        tool_call_id: 'call_1',
+        content: '4',
+      })
+
+      await app.close()
+    })
+
+    it('executa tools sem streaming e retorna a resposta final', async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              choices: [
+                {
+                  message: {
+                    role: 'assistant',
+                    content: '',
+                    tool_calls: [
+                      {
+                        id: 'call_1',
+                        type: 'function',
+                        function: {
+                          name: 'calculator',
+                          arguments: JSON.stringify({ expression: '7 * 6' }),
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            }),
+            { status: 200 }
+          )
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              choices: [
+                {
+                  message: {
+                    role: 'assistant',
+                    content: 'O resultado é 42.',
+                  },
+                },
+              ],
+            }),
+            { status: 200 }
+          )
+        )
+      vi.stubGlobal('fetch', fetchMock)
+
+      const app = buildApp({ logger: false })
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/v1/chat/completions',
+        headers: { authorization: 'Bearer test-token' },
+        payload: {
+          ...payload,
+          enable_tools: true,
+        },
+      })
+
+      expect(response.statusCode).toBe(200)
+      expect(response.json()).toEqual({
+        choices: [
+          {
+            message: {
+              role: 'assistant',
+              content: 'O resultado é 42.',
+            },
+          },
+        ],
+      })
 
       await app.close()
     })
