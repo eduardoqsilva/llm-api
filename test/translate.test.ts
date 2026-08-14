@@ -228,7 +228,7 @@ describe('POST /v1/translate', () => {
     })
 
     const sentTexts = fetchMock.mock.calls.map(
-      ([, init]: [Request, RequestInit]) =>
+      ([, init]) =>
         JSON.parse(init.body as string).messages[1].content as string
     )
     expect(sentTexts.join('')).toBe(longText.trim())
