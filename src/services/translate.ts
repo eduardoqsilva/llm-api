@@ -120,7 +120,10 @@ function preserveChunkBoundaries(source: string, translated: string): string {
   return `${leading}${core}${trailing}`
 }
 
-async function consumeStreamedContent(response: Response): Promise<string> {
+async function consumeStreamedContent(
+  response: Response,
+  onDelta: (text: string) => void
+): Promise<string> {
   const reader = response.body?.getReader()
 
   if (!reader) {
@@ -161,6 +164,7 @@ async function consumeStreamedContent(response: Response): Promise<string> {
 
       if (typeof content === 'string' && content.length > 0) {
         full += content
+        onDelta(content)
       }
     } catch {
       // Ignora eventos SSE inválidos.
@@ -231,7 +235,12 @@ async function translateChunkOnce(
   }
 
   if (options.stream) {
-    const rawContent = await consumeStreamedContent(response)
+    const rawContent = await consumeStreamedContent(response, (text) => {
+      options.onEvent?.({
+        type: 'delta',
+        text,
+      })
+    })
 
     if (!rawContent) {
       throw new TranslateError(502, {
@@ -243,17 +252,6 @@ async function translateChunkOnce(
     }
 
     const content = preserveChunkBoundaries(input.text, rawContent)
-
-    /*
-     * Emitimos o resultado já normalizado.
-     *
-     * Isso garante que o texto enviado via SSE seja exatamente o mesmo
-     * texto que será utilizado na reconstrução final.
-     */
-    options.onEvent?.({
-      type: 'delta',
-      text: content,
-    })
 
     return content
   }
