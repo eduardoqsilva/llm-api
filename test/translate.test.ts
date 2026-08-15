@@ -424,6 +424,28 @@ describe('POST /v1/translate', () => {
     await app.close()
   })
 
+  it('em streaming emite evento de erro quando o fetch falha inesperadamente', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockRejectedValue(new TypeError('fetch failed'))
+    )
+
+    const app = buildApp({ logger: false })
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/translate',
+      headers: { authorization: 'Bearer test-token' },
+      payload: { text: 'Bom dia', to: 'en', stream: true },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.body).toContain('event: error')
+    expect(response.body).toContain('fetch failed')
+
+    await app.close()
+  })
+
   it('quebra texto grande em múltiplas chamadas e junta a resposta', async () => {
     let call = 0
 

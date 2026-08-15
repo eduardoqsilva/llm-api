@@ -99,6 +99,27 @@
       gap: 8px;
     }
 
+    .profile-select {
+      max-width: 220px;
+      padding: 6px 30px 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+      font-size: 12.5px;
+      cursor: pointer;
+      outline: none;
+    }
+
+    .profile-select:hover {
+      border-color: var(--border-strong);
+    }
+
+    .profile-select:focus {
+      border-color: var(--accent);
+    }
+
     .icon-btn {
       position: relative;
       width: 36px;
@@ -755,6 +776,79 @@
       margin: -4px 0 12px;
     }
 
+    .profile-editor {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
+      background: var(--bg);
+    }
+
+    .profile-editor.active {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .profile-editor-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .profile-label {
+      font-weight: 600;
+      font-size: 13px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .profile-active-badge {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      padding: 1px 6px;
+      flex-shrink: 0;
+    }
+
+    .profile-remove {
+      margin-left: auto;
+      width: 28px;
+      height: 28px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: 8px;
+      cursor: pointer;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .profile-remove:hover:not(:disabled) {
+      color: var(--danger);
+      border-color: var(--danger);
+      background: #fdf0f0;
+    }
+
+    .profile-remove:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .profile-remove svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .profile-editor input[type="password"] {
+      margin-bottom: 0;
+    }
+
     #errorList {
       list-style: none;
       margin: 0;
@@ -814,6 +908,14 @@
       </div>
 
       <div class="header-actions">
+        <select id="profileSelect" class="profile-select" title="Configuração ativa" aria-label="Configuração ativa"></select>
+        <button id="addProfileButton" class="icon-btn" type="button" title="Adicionar configuração" aria-label="Adicionar configuração">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </button>
         <button id="clearChatButton" class="icon-btn" type="button" title="Limpar conversa" aria-label="Limpar conversa">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -968,6 +1070,10 @@
               <input type="checkbox" id="translateThinking">
               Pensamento
             </label>
+            <label class="toggle">
+              <input type="checkbox" id="translateStream" checked>
+              Streaming
+            </label>
           </div>
 
           <div class="translate-actions">
@@ -1002,32 +1108,18 @@
       </header>
 
       <div class="settings-form">
-        <label for="settingsUrl">URL da API</label>
-        <input
-          type="text"
-          id="settingsUrl"
-          spellcheck="false"
-          autocomplete="off"
-        >
+        <div id="profileList"></div>
+
         <p class="settings-hint">
-          Endereço completo do endpoint, ex.:
-          <code>http://192.168.0.10:3000/v1/chat/completions</code>
-          ou <code>https://api.exemplo.com/v1/chat/completions</code>.
-          Se não informar <code>http://</code>/<code>https://</code>,
-          é adicionado <code>https://</code> automaticamente.
+          Cada configuração guarda uma URL + token. A configuração marcada como
+          <strong>Ativo</strong> é usada nas requisições. Se não informar
+          <code>http://</code>/<code>https://</code>, é adicionado
+          <code>https://</code> automaticamente.
         </p>
 
-        <label for="settingsToken">Token</label>
-        <input
-          type="password"
-          id="settingsToken"
-          spellcheck="false"
-          autocomplete="off"
-        >
-        <p class="settings-hint">
-          Token de autenticação enviado como
-          <code>Authorization: Bearer &lt;token&gt;</code>.
-        </p>
+        <div>
+          <button id="addProfileInSettings" type="button">Adicionar perfil</button>
+        </div>
 
         <div>
           <button id="saveSettings" type="button">Salvar</button>
@@ -1084,22 +1176,87 @@
     }
 
     function loadSettings() {
+      let profiles;
+      let activeProfileId;
+
       try {
         const stored = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
-        return {
-          url: normalizeUrl(stored.url) || DEFAULT_URL,
-          token: stored.token || DEFAULT_TOKEN
-        };
+
+        if (Array.isArray(stored.profiles) && stored.profiles.length > 0) {
+          profiles = stored.profiles.map((profile) => ({
+            id: profile.id || makeProfileId(),
+            url: normalizeUrl(profile.url) || DEFAULT_URL,
+            token: profile.token || DEFAULT_TOKEN
+          }));
+          activeProfileId = stored.activeProfileId;
+        } else {
+          profiles = [{
+            id: makeProfileId(),
+            url: normalizeUrl(stored.url) || DEFAULT_URL,
+            token: stored.token || DEFAULT_TOKEN
+          }];
+          activeProfileId = profiles[0].id;
+        }
       } catch {
-        return { url: DEFAULT_URL, token: DEFAULT_TOKEN };
+        profiles = [defaultProfile()];
+        activeProfileId = profiles[0].id;
+      }
+
+      if (!profiles.some((profile) => profile.id === activeProfileId)) {
+        activeProfileId = profiles[0].id;
+      }
+
+      return { profiles, activeProfileId };
+    }
+
+    function defaultProfile() {
+      return {
+        id: makeProfileId(),
+        url: DEFAULT_URL,
+        token: DEFAULT_TOKEN
+      };
+    }
+
+    function makeProfileId() {
+      return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    }
+
+    function saveSettingsToStorage() {
+      localStorage.setItem(
+        SETTINGS_KEY,
+        JSON.stringify({ activeProfileId, profiles })
+      );
+    }
+
+    function getActiveProfile() {
+      return (
+        profiles.find((profile) => profile.id === activeProfileId) ||
+        profiles[0]
+      );
+    }
+
+    function profileLabel(profile) {
+      try {
+        return new URL(normalizeUrl(profile.url) || profile.url).host;
+      } catch {
+        return "config";
       }
     }
 
-    function saveSettingsToStorage(settings) {
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    function applyActiveProfile() {
+      const profile = getActiveProfile();
+
+      activeProfileId = profile.id;
+      API_URL = profile.url || API_URL;
+      API_TOKEN = profile.token || API_TOKEN;
+
+      renderProfileSelect();
+      saveSettingsToStorage();
     }
 
-    let { url: API_URL, token: API_TOKEN } = loadSettings();
+    let { profiles, activeProfileId } = loadSettings();
+    let API_URL = getActiveProfile().url;
+    let API_TOKEN = getActiveProfile().token;
 
     const chat = document.getElementById("chat");
     const chatInner = document.getElementById("chatInner");
@@ -1128,11 +1285,14 @@
 
     const settingsButton = document.getElementById("settingsButton");
     const settingsModal = document.getElementById("settingsModal");
-    const settingsUrl = document.getElementById("settingsUrl");
-    const settingsToken = document.getElementById("settingsToken");
+    const profileList = document.getElementById("profileList");
+    const addProfileInSettings = document.getElementById("addProfileInSettings");
     const saveSettingsButton = document.getElementById("saveSettings");
     const resetSettingsButton = document.getElementById("resetSettings");
     const closeSettingsButton = document.getElementById("closeSettings");
+
+    const profileSelect = document.getElementById("profileSelect");
+    const addProfileButton = document.getElementById("addProfileButton");
 
     const messages = [];
     const errorHistory = [];
@@ -1256,9 +1416,88 @@
 
     /* ---------- Settings ---------- */
 
+    function renderProfileSelect() {
+      profileSelect.innerHTML = "";
+
+      for (const profile of profiles) {
+        const option = document.createElement("option");
+        option.value = profile.id;
+        option.textContent = profileLabel(profile);
+        option.selected = profile.id === activeProfileId;
+        profileSelect.appendChild(option);
+      }
+    }
+
+    function renderProfileList() {
+      profileList.innerHTML = "";
+
+      profiles.forEach((profile, index) => {
+        const row = document.createElement("div");
+        row.className = `profile-editor${profile.id === activeProfileId ? " active" : ""}`;
+
+        const header = document.createElement("div");
+        header.className = "profile-editor-header";
+
+        const label = document.createElement("span");
+        label.className = "profile-label";
+        label.textContent = profileLabel(profile);
+
+        const badge = document.createElement("span");
+        badge.className = "profile-active-badge";
+        badge.textContent = "Ativo";
+        badge.hidden = profile.id !== activeProfileId;
+
+        const removeButton = document.createElement("button");
+        removeButton.type = "button";
+        removeButton.className = "profile-remove";
+        removeButton.title = "Remover configuração";
+        removeButton.disabled = profiles.length <= 1;
+        removeButton.setAttribute(
+          "aria-label",
+          `Remover configuração ${index + 1}`
+        );
+        removeButton.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+        `;
+        removeButton.addEventListener("click", () => removeProfile(profile.id));
+
+        header.appendChild(label);
+        header.appendChild(badge);
+        header.appendChild(removeButton);
+
+        const urlInput = document.createElement("input");
+        urlInput.type = "text";
+        urlInput.className = "profile-url";
+        urlInput.value = profile.url;
+        urlInput.spellcheck = false;
+        urlInput.autocomplete = "off";
+        urlInput.placeholder = "URL da API";
+        urlInput.dataset.profileId = profile.id;
+        urlInput.setAttribute("aria-label", `URL da API ${index + 1}`);
+
+        const tokenInput = document.createElement("input");
+        tokenInput.type = "password";
+        tokenInput.className = "profile-token";
+        tokenInput.value = profile.token;
+        tokenInput.spellcheck = false;
+        tokenInput.autocomplete = "off";
+        tokenInput.placeholder = "Token";
+        tokenInput.dataset.profileId = profile.id;
+        tokenInput.setAttribute("aria-label", `Token ${index + 1}`);
+
+        row.appendChild(header);
+        row.appendChild(urlInput);
+        row.appendChild(tokenInput);
+        profileList.appendChild(row);
+      });
+    }
+
     function openSettings() {
-      settingsUrl.value = API_URL;
-      settingsToken.value = API_TOKEN;
+      renderProfileList();
       settingsModal.classList.add("open");
     }
 
@@ -1267,42 +1506,97 @@
     }
 
     function saveSettings() {
-      const url = normalizeUrl(settingsUrl.value);
-      const token = settingsToken.value.trim();
+      const rows = profileList.querySelectorAll(".profile-editor");
+      const nextProfiles = [];
 
-      if (!url) {
-        setStatus("URL da API inválida. Inclua um domínio válido.", true);
-        return;
+      for (const row of rows) {
+        const urlInput = row.querySelector(".profile-url");
+        const tokenInput = row.querySelector(".profile-token");
+        const url = normalizeUrl(urlInput.value);
+        const token = tokenInput.value.trim();
+
+        if (!url) {
+          setStatus("URL da API inválida. Inclua um domínio válido.", true);
+          urlInput.focus();
+          return;
+        }
+
+        if (!token) {
+          setStatus("Informe o token.", true);
+          tokenInput.focus();
+          return;
+        }
+
+        nextProfiles.push({
+          id: urlInput.dataset.profileId,
+          url,
+          token
+        });
       }
 
-      if (!token) {
-        setStatus("Informe o token.", true);
-        return;
+      profiles = nextProfiles;
+
+      if (!profiles.some((profile) => profile.id === activeProfileId)) {
+        activeProfileId = profiles[0].id;
       }
 
-      API_URL = url;
-      API_TOKEN = token;
-
-      saveSettingsToStorage({ url, token });
+      applyActiveProfile();
       closeSettings();
 
       setStatus(
-        `Settings atualizados. Conectando em: ${url}`
+        `Settings atualizados. Conectando em: ${getActiveProfile().url}`
       );
+    }
+
+    function addProfile() {
+      const profile = { id: makeProfileId(), url: "", token: "" };
+
+      profiles.push(profile);
+      activeProfileId = profile.id;
+
+      saveSettingsToStorage();
+      renderProfileSelect();
+      openSettings();
+
+      setStatus("Preencha a URL e o token da nova configuração e clique em Salvar.");
+    }
+
+    function removeProfile(id) {
+      if (profiles.length <= 1) {
+        return;
+      }
+
+      profiles = profiles.filter((profile) => profile.id !== id);
+
+      if (activeProfileId === id) {
+        activeProfileId = profiles[0].id;
+      }
+
+      applyActiveProfile();
+      renderProfileList();
     }
 
     settingsButton.addEventListener("click", openSettings);
     closeSettingsButton.addEventListener("click", closeSettings);
     saveSettingsButton.addEventListener("click", saveSettings);
+    addProfileButton.addEventListener("click", addProfile);
+    addProfileInSettings.addEventListener("click", addProfile);
+
+    profileSelect.addEventListener("change", () => {
+      activeProfileId = profileSelect.value;
+      applyActiveProfile();
+
+      setStatus(
+        `Configuração alterada. Conectando em: ${getActiveProfile().url}`
+      );
+    });
 
     resetSettingsButton.addEventListener("click", () => {
-      API_URL = DEFAULT_URL;
-      API_TOKEN = DEFAULT_TOKEN;
+      profiles = [defaultProfile()];
+      activeProfileId = profiles[0].id;
 
-      saveSettingsToStorage({ url: DEFAULT_URL, token: DEFAULT_TOKEN });
-
-      settingsUrl.value = DEFAULT_URL;
-      settingsToken.value = DEFAULT_TOKEN;
+      applyActiveProfile();
+      renderProfileList();
 
       setStatus("Settings restaurados para o padrão.");
     });
@@ -1312,6 +1606,8 @@
         closeSettings();
       }
     });
+
+    renderProfileSelect();
 
     /* ---------- Mídia ---------- */
 
@@ -2148,6 +2444,7 @@
     const translateFrom = document.getElementById("translateFrom");
     const translateTo = document.getElementById("translateTo");
     const translateThinking = document.getElementById("translateThinking");
+    const translateStream = document.getElementById("translateStream");
     const translateSend = document.getElementById("translateSend");
     const translateResult = document.getElementById("translateResult");
     const translateCopy = document.getElementById("translateCopy");
@@ -2198,6 +2495,42 @@
       translateResult.scrollTop = translateResult.scrollHeight;
     }
 
+    async function translateNonStream(response, endpoint, requestBody) {
+      const data = await response.json().catch(() => null);
+
+      if (!data || typeof data.text !== "string") {
+        const message =
+          data?.error?.message ||
+          data?.message ||
+          "Resposta inesperada da API.";
+
+        recordError({
+          message,
+          status: response.status,
+          endpoint,
+          requestBody,
+          details: data ? JSON.stringify(data) : "JSON inválido"
+        });
+
+        translateResult.value = message;
+        setStatus(
+          `Falha na tradução (HTTP ${response.status}) — veja o histórico de erros.`,
+          true
+        );
+
+        return;
+      }
+
+      translateResult.value = data.text;
+      translateCopy.disabled = false;
+      setStatus(
+        data.from
+          ? `Pronto. Idioma de origem detectado: ${data.from}.`
+          : "Pronto."
+      );
+      scrollTranslateResult();
+    }
+
     async function sendTranslate() {
       const text = translateInput.value.trim();
       const to = translateTo.value.trim();
@@ -2224,7 +2557,7 @@
         to,
         from: from || undefined,
         thinking: translateThinking.checked,
-        stream: true
+        stream: translateStream.checked
       });
 
       setStatus("Enviando para tradução...");
@@ -2259,6 +2592,10 @@
           );
 
           return;
+        }
+
+        if (!translateStream.checked) {
+          return await translateNonStream(response, endpoint, requestBody);
         }
 
         if (!response.body) {

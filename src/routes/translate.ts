@@ -59,8 +59,10 @@ const translateRoute: FastifyPluginAsync = async (fastify) => {
     }
 
     let aborted = false
-    request.raw.on('close', () => {
-      aborted = true
+    reply.raw.on('close', () => {
+      if (!reply.raw.writableFinished) {
+        aborted = true
+      }
     })
 
     const origin = request.headers.origin
@@ -79,8 +81,11 @@ const translateRoute: FastifyPluginAsync = async (fastify) => {
     reply.hijack()
 
     const write = (chunk: string) => {
-      if (!aborted) {
+      if (aborted || reply.raw.destroyed) return
+      try {
         reply.raw.write(chunk)
+      } catch {
+        aborted = true
       }
     }
 
@@ -145,8 +150,14 @@ const translateRoute: FastifyPluginAsync = async (fastify) => {
           partial: typeof record?.partial === 'string' ? record.partial : '',
         })
       }
-    } catch {
-      // aborted or unexpected error — nothing left to send
+    } catch (error) {
+      if (!aborted) {
+        fastify.log.error(error)
+        sse('error', {
+          status: 500,
+          message: error instanceof Error ? error.message : 'Erro ao traduzir.',
+        })
+      }
     } finally {
       clearInterval(heartbeat)
       reply.raw.end()
