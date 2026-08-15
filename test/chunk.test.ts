@@ -46,10 +46,16 @@ describe('splitIntoChunks', () => {
     }
   })
 
-  it('mantém uma palavra maior que o limite inteira (sem cortar)', () => {
+  it('corta palavras maiores que o limite em pedaços de até maxChars', () => {
     const word = 'x'.repeat(200)
     const chunks = splitIntoChunks(word, 50)
-    expect(chunks).toEqual([word])
+    expect(chunks).toEqual([
+      'x'.repeat(50),
+      'x'.repeat(50),
+      'x'.repeat(50),
+      'x'.repeat(50),
+    ])
+    expect(chunks.join('')).toBe(word)
   })
 
   it('preserva as quebras de linha na reconstrução', () => {
